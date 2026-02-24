@@ -1,0 +1,18 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-ink text-white font-display;
+  background-image: theme('backgroundImage.hero');
+}
+
+::selection {
+  background: rgba(77, 227, 194, 0.25);
+}
