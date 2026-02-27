@@ -1,0 +1,47 @@
+version: '3.9'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - CORS_ORIGINS=http://localhost:3000
+      - PROMPTOPS_DB=/data/promptops.db
+      - MLFLOW_TRACKING_URI=/data/mlruns
+    volumes:
+      - promptops_data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8000
+        - NEXT_PUBLIC_MLFLOW_URL=http://localhost:5000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - promptops_data:/data
+    entrypoint: []
+    command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri /data/mlruns --default-artifact-root /data/mlruns
+    restart: unless-stopped
+
+volumes:
+  promptops_data:
