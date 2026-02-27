@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
-from promptops.core.adapter import OllamaAdapter
+from promptops.core.adapters.base import BaseAdapter
 from promptops.core.prompt import Prompt
 
 
 REWRITE_PROMPT = """
 You are an expert prompt engineer. Rewrite the prompt to improve quality while reducing tokens.
-Return JSON only: {"system": "...", "template": "..."}
+Return JSON only: {{"system": "...", "template": "..."}}
 Constraints:
 - Keep the same intent and inputs
 - Avoid extra verbosity
@@ -17,15 +18,29 @@ Current system:
 {system}
 Current template:
 {template}
+{feedback_section}
 """.strip()
 
 
 async def rewrite_prompt(
-    adapter: OllamaAdapter,
+    adapter: BaseAdapter,
     model: str,
     prompt: Prompt,
+    current_score: float | None = None,
+    judge_reasoning: str | None = None,
 ) -> Prompt | None:
-    text = REWRITE_PROMPT.format(system=prompt.system, template=prompt.template)
+    feedback_lines: list[str] = []
+    if current_score is not None:
+        feedback_lines.append(f"Current avg judge score: {current_score:.2f}")
+    if judge_reasoning:
+        feedback_lines.append(f"Judge feedback sample: {judge_reasoning}")
+    feedback_section = "\n".join(feedback_lines)
+
+    text = REWRITE_PROMPT.format(
+        system=prompt.system,
+        template=prompt.template,
+        feedback_section=feedback_section,
+    )
     resp = await adapter.generate(
         model=model,
         system="Return JSON only.",
@@ -39,7 +54,7 @@ async def rewrite_prompt(
             end = raw.rfind("}")
             if start != -1 and end != -1 and end > start:
                 raw = raw[start : end + 1]
-        data: dict[str, Any] = __import__("json").loads(raw)
+        data: dict[str, Any] = json.loads(raw)
         system = str(data.get("system", "")).strip()
         template = str(data.get("template", "")).strip()
         if not system or not template:

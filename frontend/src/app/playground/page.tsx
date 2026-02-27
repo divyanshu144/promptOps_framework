@@ -11,12 +11,14 @@ type PromptPayload = {
   model: string;
   params: { temperature: number; max_tokens: number };
   context_limit: number;
+  provider: string;
 };
 
 export default function Playground() {
   const [systemA, setSystemA] = useState("You are a helpful assistant.");
   const [templateA, setTemplateA] = useState("{input}");
   const [modelA, setModelA] = useState("llama3.1");
+  const [providerA, setProviderA] = useState("ollama");
 
   const [enableB, setEnableB] = useState(false);
   const [systemB, setSystemB] = useState("You are a concise assistant.");
@@ -28,8 +30,10 @@ export default function Playground() {
   const [rubric, setRubric] = useState("{\n  \"quality\": 1.0\n}");
 
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [results, setResults] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [showDiff, setShowDiff] = useState(false);
   const [advanced, setAdvanced] = useState(false);
 
@@ -67,11 +71,12 @@ export default function Playground() {
     setLoading(true);
     setError(null);
     setResults([]);
+    setSaveMessage(null);
 
     let rubricObj: any = null;
     try {
       rubricObj = rubric.trim() ? JSON.parse(rubric) : null;
-    } catch (e) {
+    } catch {
       setError("Rubric must be valid JSON");
       setLoading(false);
       return;
@@ -85,6 +90,7 @@ export default function Playground() {
         model: modelA,
         params: { temperature: 0.2, max_tokens: 200 },
         context_limit: 4096,
+        provider: providerA,
       },
     ];
 
@@ -96,6 +102,7 @@ export default function Playground() {
         model: modelB,
         params: { temperature: 0.2, max_tokens: 200 },
         context_limit: 4096,
+        provider: providerA,
       });
     }
 
@@ -109,14 +116,62 @@ export default function Playground() {
       rubric: rubricObj,
     };
 
-    const res = await fetch(`${API_URL}/preview`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    setResults(data.results || []);
-    setLoading(false);
+    try {
+      const res = await fetch(`${API_URL}/preview`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setResults(data.results || []);
+    } catch (e: any) {
+      setError(e.message || "Failed to reach API. Is the backend running?");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function saveRun() {
+    setSaving(true);
+    setSaveMessage(null);
+    setError(null);
+
+    const body = {
+      prompt: {
+        name: "playground_run",
+        system: systemA,
+        template: templateA,
+        model: modelA,
+        params: { temperature: 0.2, max_tokens: 200 },
+        context_limit: 4096,
+        provider: providerA,
+      },
+      judge_model: judgeModel,
+    };
+
+    try {
+      const res = await fetch(`${API_URL}/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setSaveMessage(
+        `Run saved! ID: ${data.run_id} — avg score: ${Number(data.avg_judge_score || 0).toFixed(3)}`
+      );
+    } catch (e: any) {
+      setError(e.message || "Failed to save run.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -127,9 +182,6 @@ export default function Playground() {
             <h1 className="text-3xl font-semibold">Prompt Playground</h1>
             <p className="text-muted mt-2">Test prompts without storing them.</p>
           </div>
-          <a className="text-accent hover:text-accent2" href="/">
-            Back
-          </a>
         </header>
 
         <section className="grid gap-4 md:grid-cols-2 mt-6">
@@ -148,6 +200,28 @@ export default function Playground() {
               onChange={(e) => setTemplateA(e.target.value)}
               placeholder="Use {input}"
             />
+            <div className="mt-3 flex gap-3">
+              <label className="text-xs uppercase tracking-widest text-muted">
+                Model
+                <input
+                  className="ml-2 rounded-lg border border-border bg-black/40 px-2 py-1 text-sm"
+                  value={modelA}
+                  onChange={(e) => setModelA(e.target.value)}
+                />
+              </label>
+              <label className="text-xs uppercase tracking-widest text-muted">
+                Provider
+                <select
+                  className="ml-2 rounded-lg border border-border bg-black/40 px-2 py-1 text-sm"
+                  value={providerA}
+                  onChange={(e) => setProviderA(e.target.value)}
+                >
+                  <option value="ollama">Ollama</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="anthropic">Anthropic</option>
+                </select>
+              </label>
+            </div>
           </div>
 
           <div className="rounded-2xl border border-border bg-card shadow-glow p-5">
@@ -158,18 +232,25 @@ export default function Playground() {
               onChange={(e) => setInput(e.target.value)}
             />
             <div className="text-muted text-xs mt-2">
-              Tip: add multiple lines to run multiple inputs.
+              Tip: add multiple lines to run multiple inputs (max 20).
             </div>
           </div>
         </section>
 
-        <div className="mt-4 flex items-center gap-3">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <button
             onClick={runPreview}
             disabled={loading}
             className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-black font-semibold hover:bg-accent2 disabled:opacity-50"
           >
             {loading ? "Running..." : "Run Preview"}
+          </button>
+          <button
+            onClick={saveRun}
+            disabled={saving}
+            className="inline-flex items-center justify-center rounded-lg border border-border bg-white/5 px-4 py-2 text-sm font-medium hover:bg-white/10 disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save Run"}
           </button>
           <label className="text-xs uppercase tracking-widest text-muted">
             <input
@@ -180,7 +261,18 @@ export default function Playground() {
             />
             Advanced
           </label>
-          {error && <div className="text-sm text-red-400">{error}</div>}
+          {error && (
+            <div className="flex items-center gap-2 text-sm text-red-400">
+              {error}
+              <button
+                onClick={runPreview}
+                className="underline text-red-300 hover:text-red-200"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          {saveMessage && <div className="text-sm text-emerald-400">{saveMessage}</div>}
         </div>
 
         {advanced && (
@@ -294,6 +386,15 @@ export default function Playground() {
                             <div className="text-sm">
                               Score: {Number(r?.judge_score || 0).toFixed(4)}
                             </div>
+                            {r?.judge_criteria && Object.keys(r.judge_criteria).length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {Object.entries(r.judge_criteria).map(([k, v]: [string, any]) => (
+                                  <span key={k} className="rounded-full bg-accent/10 px-2 py-0.5 text-xs text-accent">
+                                    {k}: {Number(v).toFixed(2)}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                             <div className="text-muted text-sm mt-1">{r?.judge_reasoning}</div>
                           </div>
                         );

@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from typing import Iterable
 
 from promptops.core.prompt import Prompt
+from promptops.tests.testcase import TestCase
 
 
-def basic_mutations(prompt: Prompt) -> Iterable[Prompt]:
+def basic_mutations(
+    prompt: Prompt,
+    testcases: list[TestCase] | None = None,
+) -> Iterable[Prompt]:
     variants: list[Prompt] = []
 
     # Concise system variant
@@ -40,24 +45,36 @@ def basic_mutations(prompt: Prompt) -> Iterable[Prompt]:
     p5.system = prompt.system + " Provide only the final answer."
     variants.append(p5)
 
-    # Few-shot injection variant
+    # Few-shot injection variant — derive examples from test cases when available
     p6 = deepcopy(prompt)
     p6.name = f"{prompt.name}_fewshot"
-    p6.template = (
-        "Examples:\n"
-        "Input: What is 2+2?\n"
-        "Output: 4\n\n"
-        "Input: Define recursion briefly.\n"
-        "Output: Recursion is a function calling itself.\n\n"
-        "Task:\n"
-        "{input}\n"
-    )
+    if testcases and len(testcases) >= 1:
+        example_lines: list[str] = []
+        for tc in testcases[:2]:
+            input_str = json.dumps(tc.input) if isinstance(tc.input, dict) else str(tc.input)
+            expected_str = tc.expected or "(see rubric)"
+            example_lines.append(f"Input: {input_str}\nOutput: {expected_str}")
+        examples_block = "\n\n".join(example_lines)
+        p6.template = (
+            f"Examples:\n{examples_block}\n\nTask:\n"
+            + prompt.template
+        )
+    else:
+        p6.template = (
+            "Examples:\n"
+            "Input: What is 2+2?\n"
+            "Output: 4\n\n"
+            "Input: Define recursion briefly.\n"
+            "Output: Recursion is a function calling itself.\n\n"
+            "Task:\n"
+            "{input}\n"
+        )
     variants.append(p6)
 
     # Schema enforcement variant
     p7 = deepcopy(prompt)
     p7.name = f"{prompt.name}_schema"
-    p7.system = prompt.system + " Respond with JSON matching this schema: {\"answer\": string}"
+    p7.system = prompt.system + ' Respond with JSON matching this schema: {"answer": string}'
     p7.output_format = "json"
     p7.output_schema = {"answer": "string"}
     variants.append(p7)

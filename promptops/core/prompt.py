@@ -14,6 +14,7 @@ class Prompt(BaseModel):
     context_limit: int = 4096
     output_format: str | None = None
     output_schema: Dict[str, Any] | None = None
+    provider: str = "ollama"
 
     def render(self, **kwargs: Any) -> str:
         class _SafeFormatter(string.Formatter):

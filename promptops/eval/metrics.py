@@ -13,7 +13,6 @@ class RunMetrics(BaseModel):
     token_penalty: float
     format_valid: bool | None = None
     format_penalty: float = 0.0
-    cost_usd: float | None = None
     objective: float
 
 
