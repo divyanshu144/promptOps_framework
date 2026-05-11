@@ -163,6 +163,9 @@ async def run_dataset(
 
     mlflow.set_tracking_uri(mlflow_uri)
 
+    if mlflow.active_run():
+        mlflow.end_run()
+
     with mlflow.start_run() as run:
         mlflow.log_params(
             {

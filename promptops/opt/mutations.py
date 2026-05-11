@@ -55,8 +55,10 @@ def basic_mutations(
             expected_str = tc.expected or "(see rubric)"
             example_lines.append(f"Input: {input_str}\nOutput: {expected_str}")
         examples_block = "\n\n".join(example_lines)
+        # Escape braces so json content isn't misread as format placeholders
+        safe_block = examples_block.replace("{", "{{").replace("}", "}}")
         p6.template = (
-            f"Examples:\n{examples_block}\n\nTask:\n"
+            f"Examples:\n{safe_block}\n\nTask:\n"
             + prompt.template
         )
     else:
