@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import asyncio
+import json
 import os
 from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 
 from promptops.core.adapters import make_adapter
@@ -27,6 +30,8 @@ from promptops.store.db import (
     get_suite_cases,
     add_suite_case,
     remove_suite_case,
+    get_prompt_history,
+    list_prompt_names,
 )
 
 
@@ -92,6 +97,7 @@ class OptimizeRequest(BaseModel):
     iterations: int = 2
     use_rewriter: bool = True
     rewriter_model: str | None = None
+    suite_id: int | None = None
 
     @field_validator("iterations")
     @classmethod
@@ -161,27 +167,41 @@ async def preview(req: PreviewRequest) -> dict[str, Any]:
     else:
         testcases = demo_dataset()
 
-    all_results = []
-    for prompt in prompts:
+    async def _run_one_prompt(prompt: Prompt) -> dict[str, Any]:
         adapter = make_adapter(prompt.provider)
-        prompt_results = []
-        for tc in testcases:
-            prompt_results.append(
-                await run_prompt_detailed(adapter, prompt, tc, req.judge_model)
-            )
-        all_results.append({"prompt": prompt.model_dump(), "results": prompt_results})
+        results = await asyncio.gather(
+            *[run_prompt_detailed(adapter, prompt, tc, req.judge_model) for tc in testcases]
+        )
+        return {"prompt": prompt.model_dump(), "results": list(results)}
 
-    return {"results": all_results}
+    all_results = await asyncio.gather(*[_run_one_prompt(p) for p in prompts])
+    return {"results": list(all_results)}
 
 
 @app.post("/optimize")
 async def optimize(req: OptimizeRequest) -> dict[str, Any]:
     adapter = make_adapter(req.prompt.provider)
     prompt = Prompt(**req.prompt.model_dump())
+
+    if req.suite_id is not None:
+        suite_cases = get_suite_cases(req.suite_id)
+        if not suite_cases:
+            raise HTTPException(status_code=404, detail="Suite not found or has no cases")
+        testcases = [
+            TestCase(
+                input=sc["input"],
+                expected=sc.get("expected"),
+                rubric=sc.get("rubric"),
+            )
+            for sc in suite_cases
+        ]
+    else:
+        testcases = demo_dataset()
+
     results = await optimize_prompt(
         adapter=adapter,
         base_prompt=prompt,
-        testcases=demo_dataset(),
+        testcases=testcases,
         judge_model=req.judge_model,
         iterations=req.iterations,
         use_rewriter=req.use_rewriter,
@@ -191,6 +211,63 @@ async def optimize(req: OptimizeRequest) -> dict[str, Any]:
         "best_prompt": results["best_prompt"].model_dump(),
         "best_result": results["best_result"],
     }
+
+
+@app.post("/optimize/stream")
+async def optimize_stream(req: OptimizeRequest) -> StreamingResponse:
+    async def event_gen():
+        queue: asyncio.Queue[str] = asyncio.Queue()
+
+        async def progress(msg: str) -> None:
+            await queue.put(json.dumps({"type": "progress", "message": msg}))
+
+        async def run() -> None:
+            try:
+                adapter = make_adapter(req.prompt.provider)
+                prompt = Prompt(**req.prompt.model_dump())
+                if req.suite_id is not None:
+                    suite_cases = get_suite_cases(req.suite_id)
+                    if not suite_cases:
+                        await queue.put(json.dumps({"type": "error", "message": "Suite not found or has no cases"}))
+                        return
+                    testcases = [
+                        TestCase(input=sc["input"], expected=sc.get("expected"), rubric=sc.get("rubric"))
+                        for sc in suite_cases
+                    ]
+                else:
+                    testcases = demo_dataset()
+                results = await optimize_prompt(
+                    adapter=adapter,
+                    base_prompt=prompt,
+                    testcases=testcases,
+                    judge_model=req.judge_model,
+                    iterations=req.iterations,
+                    use_rewriter=req.use_rewriter,
+                    rewriter_model=req.rewriter_model,
+                    progress_callback=progress,
+                )
+                await queue.put(json.dumps({
+                    "type": "done",
+                    "best_prompt": results["best_prompt"].model_dump(),
+                    "best_result": results["best_result"],
+                }))
+            except Exception as e:
+                await queue.put(json.dumps({"type": "error", "message": str(e)}))
+
+        task = asyncio.create_task(run())
+        while True:
+            event = await queue.get()
+            yield f"data: {event}\n\n"
+            data = json.loads(event)
+            if data.get("type") in ("done", "error"):
+                break
+        await task
+
+    return StreamingResponse(
+        event_gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/leaderboard")
@@ -210,6 +287,19 @@ def run_detail(run_id: int) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail="not_found")
     results = get_run_results(run_id)
     return {"run": run, "results": results}
+
+
+# --- Prompt history endpoints ---
+
+@app.get("/prompts")
+def prompts_list() -> dict[str, Any]:
+    return {"prompts": list_prompt_names()}
+
+
+@app.get("/prompts/{name}/history")
+def prompt_history(name: str, limit: int = 100) -> dict[str, Any]:
+    history = get_prompt_history(name, limit=limit)
+    return {"prompt_name": name, "runs": history}
 
 
 # --- Suite endpoints ---
