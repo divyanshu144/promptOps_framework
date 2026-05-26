@@ -6,6 +6,7 @@ from typing import Any, Dict
 
 @dataclass
 class TestCase:
+    __test__ = False
     input: Dict[str, Any]
     expected: str | None = None
     rubric: Dict[str, Any] | None = None

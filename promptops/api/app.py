@@ -33,6 +33,7 @@ from promptops.store.db import (
     get_prompt_history,
     list_prompt_names,
 )
+from promptops.eval.deepeval_harness import DeepEvalHarness
 
 
 @asynccontextmanager
@@ -69,6 +70,7 @@ class RunRequest(BaseModel):
     prompt: PromptPayload
     judge_model: str = "llama3.1"
     suite_id: int | None = None
+    eval_harness: str | None = None
 
 
 class PreviewRequest(BaseModel):
@@ -135,6 +137,9 @@ async def health(provider: str = "ollama") -> dict[str, Any]:
 
 @app.post("/run")
 async def run(req: RunRequest) -> dict[str, Any]:
+    if req.eval_harness is not None and req.eval_harness != "deepeval":
+        raise HTTPException(status_code=400, detail=f"Unknown eval_harness: {req.eval_harness!r}. Supported: 'deepeval'")
+
     adapter = make_adapter(req.prompt.provider)
     prompt = Prompt(**req.prompt.model_dump())
 
@@ -153,7 +158,11 @@ async def run(req: RunRequest) -> dict[str, Any]:
     else:
         testcases = demo_dataset()
 
-    results = await run_dataset(adapter, prompt, testcases, req.judge_model)
+    harness = None
+    if req.eval_harness == "deepeval":
+        harness = DeepEvalHarness(adapter=adapter, model=req.judge_model)
+
+    results = await run_dataset(adapter, prompt, testcases, req.judge_model, harness=harness)
     return results
 
 

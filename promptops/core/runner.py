@@ -20,6 +20,8 @@ from promptops.store.db import (
     insert_run_result,
     get_best_for_prompt,
 )
+from promptops.eval.harness import EvalHarness
+from promptops.eval.llm_judge_harness import LLMJudgeHarness
 
 
 def prompt_hash(prompt: Prompt) -> str:
@@ -32,7 +34,11 @@ async def run_prompt(
     prompt: Prompt,
     testcase: TestCase,
     judge_model: str,
+    harness: EvalHarness | None = None,
 ) -> tuple[str, RunMetrics, dict[str, Any]]:
+    if harness is None:
+        harness = LLMJudgeHarness(adapter, judge_model)
+
     rendered = prompt.render(**testcase.input)
 
     start = time.time()
@@ -44,13 +50,11 @@ async def run_prompt(
     )
     latency_ms = (time.time() - start) * 1000.0
 
-    judge = await judge_output(
-        adapter=adapter,
-        model=judge_model,
-        rubric=testcase.rubric or {"quality": 1.0},
+    judge = await harness.evaluate(
         user_input=testcase.input,
-        assistant_output=resp.output,
-        expected=testcase.expected,
+        actual_output=resp.output,
+        expected_output=testcase.expected,
+        rubric=testcase.rubric,
     )
 
     format_valid = None
@@ -153,7 +157,11 @@ async def run_dataset(
     testcases: list[TestCase],
     judge_model: str,
     mlflow_uri: str = "./mlruns",
+    harness: EvalHarness | None = None,
 ) -> dict[str, Any]:
+    if harness is None:
+        harness = LLMJudgeHarness(adapter, judge_model)
+
     init_db()
 
     # Health check before running
@@ -177,8 +185,7 @@ async def run_dataset(
             }
         )
 
-        # Run all test cases in parallel
-        tasks = [run_prompt(adapter, prompt, tc, judge_model) for tc in testcases]
+        tasks = [run_prompt(adapter, prompt, tc, judge_model, harness=harness) for tc in testcases]
         results = await asyncio.gather(*tasks)
 
         outputs: list[str] = []

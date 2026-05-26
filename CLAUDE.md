@@ -6,7 +6,7 @@ A **prompt-as-code MLOps framework** — version, evaluate, and systematically o
 
 ## What It Does
 
-1. **Run** a prompt against a dataset → LLM-as-judge scores each output → objective metric computed → stored in SQLite + MLflow
+1. **Run** a prompt against a dataset → pluggable eval harness scores each output → objective metric computed → stored in SQLite + MLflow
 2. **Optimize** → generate 7-8 mutations + LLM rewrite → evaluate all in parallel → pick best → early-stop if flat
 3. **Detect regressions** → compare new run's objective vs previous best for same prompt name → warn + badge
 4. **A/B test** in the Playground → side-by-side output comparison with word-level diff
@@ -27,7 +27,7 @@ User (CLI / Frontend / API)
     ├── health_check()           ← abort early if provider unreachable
     ├── asyncio.gather(run_prompt per testcase)   ← parallel
     │     ├── adapter.generate()
-    │     ├── judge_output() × 3  ← stability averaging
+    │     ├── harness.evaluate()   ← LLMJudgeHarness (default) or DeepEvalHarness
     │     └── compute_metrics()   ← objective formula
     ├── regression detection      ← compare vs previous best
     ├── insert_run() + insert_run_result()   ← SQLite
@@ -46,7 +46,10 @@ User (CLI / Frontend / API)
 | `promptops/core/adapters/ollama.py` | Ollama (local); maps `max_tokens`→`num_predict` |
 | `promptops/core/adapters/openai.py` | OpenAI; reads `OPENAI_API_KEY` |
 | `promptops/core/adapters/anthropic.py` | Anthropic; reads `ANTHROPIC_API_KEY` |
-| `promptops/core/runner.py` | `run_dataset()`, `run_prompt()`, `run_prompt_detailed()` |
+| `promptops/core/runner.py` | `run_dataset()`, `run_prompt()`, `run_prompt_detailed()` — accepts `harness: EvalHarness | None` |
+| `promptops/eval/harness.py` | `EvalHarness` ABC — pluggable evaluation interface returning `JudgeResult` |
+| `promptops/eval/llm_judge_harness.py` | `LLMJudgeHarness` — default; wraps `judge_output()` unchanged |
+| `promptops/eval/deepeval_harness.py` | `DeepEvalHarness` + `PromptOpsDeepEvalLLM` bridge; routes DeepEval through `BaseAdapter` |
 | `promptops/eval/judge.py` | LLM-as-judge; 3× parallel calls averaged; multi-criterion JSON |
 | `promptops/eval/metrics.py` | `compute_metrics()` → `RunMetrics` with objective score |
 | `promptops/opt/mutations.py` | `basic_mutations(prompt, testcases)` — 7-8 variants |
@@ -139,7 +142,7 @@ DB path: `PROMPTOPS_DB` env var (default `./promptops.db`)
 | Method | Path | Description |
 |---|---|---|
 | GET | `/health?provider=ollama` | Provider reachability check |
-| POST | `/run` | Run prompt on demo dataset or named suite |
+| POST | `/run` | Run prompt on demo dataset or named suite; optional `eval_harness: "deepeval"` field |
 | POST | `/preview` | A/B compare prompts, custom inputs |
 | POST | `/optimize` | Run optimization loop |
 | GET | `/leaderboard` | Top 10 runs by objective |
@@ -229,3 +232,6 @@ docker compose up --build
 - **Judge adapter type**: `BaseAdapter`, not `OllamaAdapter` — works with any provider.
 - **`insert_run()` returns the DB row ID** — use it to call `insert_run_result()`.
 - **`NEXT_PUBLIC_*` vars are baked in at Next.js build time** — changing them requires a rebuild.
+- **Default harness is `LLMJudgeHarness`** — `run_dataset()` and `run_prompt()` accept `harness: EvalHarness | None`; `None` → `LLMJudgeHarness` constructed internally. Pass `DeepEvalHarness(adapter, model)` to use DeepEval.
+- **DeepEval integration test suite** — `pytest -m deepeval promptops/tests/evals/ -v` requires Ollama running; skips gracefully if unreachable.
+- **`eval_harness` in `/run` body** — accepted values: `null` (default LLM judge) or `"deepeval"`; unknown values return HTTP 400.

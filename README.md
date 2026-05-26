@@ -18,6 +18,7 @@ Prompt engineering happens in notebooks, chat windows, and scattered scripts. Th
 | Capability | Details |
 |---|---|
 | **Prompt versioning** | SHA-256 hash of every prompt config — detect duplicates, track changes |
+| **Pluggable eval harness** | Swap evaluation strategies via `EvalHarness` ABC — built-in LLM judge or DeepEval (G-Eval + AnswerRelevancy); routes through your existing model provider, no new API keys |
 | **Automated evaluation** | LLM-as-judge scores outputs across custom rubric criteria (3× parallel calls averaged for stability) |
 | **Multi-metric objective** | `quality − token_penalty − format_penalty − latency_penalty` |
 | **Regression detection** | Every run compared against previous best — warns and badges if quality drops |
@@ -63,7 +64,7 @@ Prompt engineering happens in notebooks, chat windows, and scattered scripts. Th
 
 1. `run_dataset()` — health-checks the provider, opens an MLflow run
 2. All test cases evaluated **in parallel** via `asyncio.gather`
-3. Each case: render template → generate output → judge 3× → average scores → compute objective
+3. Each case: render template → generate output → `harness.evaluate()` → compute objective
 4. Regression check against previous best for the same prompt
 5. Results written to SQLite (`runs` + `run_results` tables) and MLflow
 
@@ -88,6 +89,9 @@ LLM outputs at temperature > 0 are non-deterministic. Averaging 3 concurrent cal
 
 **Why a multi-metric objective?**
 Raw judge score ignores real costs. The objective penalizes token waste, format failures, and latency — prompts that are both high quality *and* efficient score better.
+
+**Why a pluggable `EvalHarness`?**
+The LLM-as-judge pattern is custom and unvalidated against the broader industry. The `EvalHarness` ABC decouples evaluation strategy from the rest of the pipeline — `LLMJudgeHarness` (the default) wraps the existing judge unchanged, while `DeepEvalHarness` wires in DeepEval's G-Eval and AnswerRelevancy metrics. Both return the same `JudgeResult` shape, so nothing downstream changes. New frameworks (RAGAS, Braintrust) can be added as additional harness implementations.
 
 **Why parallel candidate evaluation?**
 The optimization loop generates 7-8 mutations + an LLM rewrite. Sequential eval would be impractical. With `asyncio.gather`, all candidates run simultaneously.
@@ -125,6 +129,25 @@ Every run stores `avg_objective` in SQLite. On the next run of the same prompt, 
 ### Test Suites
 
 Named, persistent collections of test cases (input + expected output + rubric). Run any prompt against a suite via `POST /run` with `suite_id`. Managed from the UI or CLI.
+
+### Eval Harness
+
+The evaluation strategy is pluggable via the `EvalHarness` ABC in `promptops/eval/harness.py`.
+
+| Harness | How to use | What it does |
+|---|---|---|
+| `LLMJudgeHarness` | default (omit `eval_harness`) | 3× parallel LLM judge calls averaged; respects test-case rubric |
+| `DeepEvalHarness` | `"eval_harness": "deepeval"` in `/run` body | DeepEval G-Eval + AnswerRelevancy via `PromptOpsDeepEvalLLM` bridge |
+
+The `PromptOpsDeepEvalLLM` bridge routes all DeepEval metric calls through the existing `BaseAdapter`, so DeepEval works with Ollama, OpenAI, or Anthropic — no extra API key.
+
+To run the DeepEval-backed integration eval suite (requires Ollama):
+
+```bash
+pytest -m deepeval promptops/tests/evals/ -v
+```
+
+To add a new eval framework: implement `EvalHarness.evaluate()`, register it in the `/run` endpoint's `eval_harness` guard.
 
 ### Prompt History
 
@@ -199,6 +222,9 @@ promptops/
 │   ├── runner.py          # run_dataset(), run_prompt(), regression detection
 │   └── adapters/          # BaseAdapter, OllamaAdapter, OpenAIAdapter, AnthropicAdapter
 ├── eval/
+│   ├── harness.py         # EvalHarness ABC — pluggable evaluation interface
+│   ├── llm_judge_harness.py  # LLMJudgeHarness — default, wraps judge.py
+│   ├── deepeval_harness.py   # DeepEvalHarness + PromptOpsDeepEvalLLM bridge
 │   ├── judge.py           # LLM-as-judge, 3× stability averaging, multi-criterion
 │   └── metrics.py         # compute_metrics(), objective formula
 ├── opt/
@@ -210,7 +236,8 @@ promptops/
 ├── api/
 │   └── app.py             # FastAPI — all endpoints including /optimize/stream SSE
 ├── tests/
-│   └── ...                # pytest suite (33 tests covering core, eval, opt, store)
+│   └── ...                # pytest suite (49 tests covering core, eval, opt, store)
+└── tests/evals/           # DeepEval integration tests (require Ollama; skips if unavailable)
 └── cli.py                 # Typer CLI
 
 frontend/src/app/
@@ -233,8 +260,6 @@ frontend/src/app/
 pytest tests/ -v
 ```
 
-All 33 tests run without a live model provider — they use mocked adapters.
-
 ---
 
 ## Adding a New Provider
@@ -243,6 +268,16 @@ All 33 tests run without a live model provider — they use mocked adapters.
 2. Implement `generate()` and `health_check()`
 3. Register in `make_adapter()` in `promptops/core/adapters/__init__.py`
 4. Add the provider name to the select dropdowns in `playground/page.tsx` and `optimize/page.tsx`
+
+---
+
+## Adding a New Eval Framework
+
+1. Create `promptops/eval/myframework_harness.py` implementing `EvalHarness`
+2. Implement `async evaluate(user_input, actual_output, expected_output, rubric) -> JudgeResult`
+3. Register a new string key in the `eval_harness` guard in `promptops/api/app.py`
+
+The `JudgeResult` shape (`score`, `criteria`, `reasoning`) is what the rest of the pipeline consumes — as long as your harness returns that, nothing else changes.
 
 ---
 

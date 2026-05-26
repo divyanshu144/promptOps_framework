@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "promptops"
 version = "0.1.0"
@@ -14,13 +18,21 @@ dependencies = [
   "python-dotenv>=1.0",
   "openai>=1.30",
   "anthropic>=0.28",
+  "deepeval>=0.21",
 ]
 
 [project.scripts]
 promptops = "promptops.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["promptops*"]
 
 [tool.ruff]
 line-length = 100
 
 [tool.pytest.ini_options]
 addopts = "-q"
+markers = [
+  "deepeval: marks tests as DeepEval integration evals (require Ollama running)",
+]
