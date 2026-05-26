@@ -2,8 +2,6 @@
 
 > **Prompt-as-code MLOps framework** — version, evaluate, optimize, and monitor LLM prompts with the same rigor applied to software.
 
-Live demo → [promptopsframework-production-a54a.up.railway.app](https://promptopsframework-production-a54a.up.railway.app)
-Backend API → [promptopsframework-production.up.railway.app/docs](https://promptopsframework-production.up.railway.app/docs)
 
 ---
 
