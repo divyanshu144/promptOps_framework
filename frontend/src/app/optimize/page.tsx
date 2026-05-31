@@ -94,7 +94,12 @@ export default function OptimizePage() {
             setProgress((prev) => [...prev, event.message]);
             scrollProgress();
           } else if (event.type === "done") {
-            setResult({ best_prompt: event.best_prompt, best_result: event.best_result });
+            setResult({
+              baseline_result: event.baseline_result,
+              best_prompt: event.best_prompt,
+              best_result: event.best_result,
+              comparison: event.comparison,
+            });
             setLoading(false);
           } else if (event.type === "error") {
             setError(event.message);
@@ -271,6 +276,32 @@ export default function OptimizePage() {
                   <span className="text-[10px] font-mono uppercase tracking-widest text-muted">Avg Judge Score</span>
                   <span className="font-mono text-white">
                     {Number(result.best_result?.avg_judge_score || 0).toFixed(4)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-muted">Pass Rate</span>
+                  <span className="font-mono text-white">
+                    {result.best_result?.pass_rate != null
+                      ? `${(Number(result.best_result.pass_rate) * 100).toFixed(0)}%`
+                      : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-muted">Baseline</span>
+                  <span className="font-mono text-white">
+                    {result.baseline_result?.pass_rate != null
+                      ? `${(Number(result.baseline_result.pass_rate) * 100).toFixed(0)}%`
+                      : "—"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-muted">Delta</span>
+                  <span className="font-mono text-accent">
+                    {result.comparison?.pass_rate_delta != null
+                      ? `${Number(result.comparison.pass_rate_delta) >= 0 ? "+" : ""}${(
+                          Number(result.comparison.pass_rate_delta) * 100
+                        ).toFixed(0)}pp`
+                      : "—"}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

@@ -54,6 +54,24 @@ def test_run_prompt_uses_provided_harness():
         rubric={"quality": 1.0},
     )
     assert judge_info["judge_score"] == pytest.approx(0.9)
+    assert judge_info["passed"] is True
+
+
+def test_run_prompt_marks_failed_when_below_threshold():
+    adapter = _mock_adapter()
+    prompt = _default_prompt()
+    tc = TestCase(input={"input": "hello"}, rubric={"quality": 1.0}, threshold=0.8)
+
+    mock_harness = MagicMock()
+    mock_harness.evaluate = AsyncMock(
+        return_value=JudgeResult(score=0.7, criteria={"quality": 0.7}, reasoning="ok")
+    )
+
+    _output, _metrics, judge_info = asyncio.run(
+        run_prompt(adapter, prompt, tc, judge_model="llama3.1", harness=mock_harness)
+    )
+
+    assert judge_info["passed"] is False
 
 
 def test_run_prompt_defaults_to_llm_judge_harness_when_none():
@@ -76,11 +94,17 @@ def test_run_prompt_defaults_to_llm_judge_harness_when_none():
 def test_run_dataset_passes_harness_to_run_prompt():
     adapter = _mock_adapter()
     prompt = _default_prompt()
-    tcs = [_default_testcase()]
+    tcs = [
+        TestCase(input={"input": "pass"}, rubric={"quality": 1.0}, threshold=0.7),
+        TestCase(input={"input": "fail"}, rubric={"quality": 1.0}, threshold=0.7),
+    ]
 
     mock_harness = MagicMock()
     mock_harness.evaluate = AsyncMock(
-        return_value=JudgeResult(score=0.8, criteria={}, reasoning="good")
+        side_effect=[
+            JudgeResult(score=0.8, criteria={}, reasoning="good"),
+            JudgeResult(score=0.6, criteria={}, reasoning="weak"),
+        ]
     )
 
     mock_run_info = MagicMock()
@@ -91,8 +115,8 @@ def test_run_dataset_passes_harness_to_run_prompt():
 
     with patch("promptops.core.runner.init_db"), \
          patch("promptops.core.runner.mlflow") as mock_mlflow, \
-         patch("promptops.core.runner.insert_run", return_value=1), \
-         patch("promptops.core.runner.insert_run_result"), \
+         patch("promptops.core.runner.insert_run", return_value=1) as mock_insert_run, \
+         patch("promptops.core.runner.insert_run_result") as mock_insert_result, \
          patch("promptops.core.runner.get_best_for_prompt", return_value=None):
         mock_mlflow.active_run.return_value = None
         mock_mlflow.start_run.return_value = mock_ctx
@@ -100,5 +124,9 @@ def test_run_dataset_passes_harness_to_run_prompt():
             run_dataset(adapter, prompt, tcs, judge_model="llama3.1", harness=mock_harness)
         )
 
-    mock_harness.evaluate.assert_called_once()
-    assert result["avg_judge_score"] == pytest.approx(0.8)
+    assert mock_harness.evaluate.call_count == 2
+    assert result["avg_judge_score"] == pytest.approx(0.7)
+    assert result["pass_rate"] == pytest.approx(0.5)
+    assert mock_insert_run.call_args.args[0]["pass_rate"] == pytest.approx(0.5)
+    passed_values = [call.kwargs["passed"] for call in mock_insert_result.call_args_list]
+    assert passed_values == [True, False]

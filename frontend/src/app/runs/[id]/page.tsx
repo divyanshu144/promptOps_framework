@@ -16,6 +16,7 @@ type RunResult = {
   judge_criteria?: Record<string, number>;
   judge_reasoning?: string;
   metrics?: Record<string, any>;
+  passed?: number;
 };
 
 export default function RunDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -110,6 +111,14 @@ export default function RunDetail({ params }: { params: Promise<{ id: string }> 
               <div className="mt-1 font-mono">{Number(run.judge_score || 0).toFixed(4)}</div>
             </div>
             <div>
+              <div className="text-muted text-xs uppercase tracking-widest">Pass Rate</div>
+              <div className="mt-1 font-mono">
+                {run.pass_rate != null
+                  ? `${(Number(run.pass_rate) * 100).toFixed(0)}%`
+                  : "—"}
+              </div>
+            </div>
+            <div>
               <div className="text-muted text-xs uppercase tracking-widest">Created At</div>
               <div className="mt-1">{run.created_at}</div>
             </div>
@@ -148,9 +157,20 @@ export default function RunDetail({ params }: { params: Promise<{ id: string }> 
                     className="w-full flex items-center justify-between p-4 text-left hover:bg-white/5"
                     onClick={() => toggleExpand(r.test_idx)}
                   >
-                    <span className="text-sm font-medium">
+                    <span className="flex items-center gap-2.5 text-sm font-medium">
                       Case #{r.test_idx + 1} — Judge:{" "}
                       <span className="font-mono">{Number(r.judge_score || 0).toFixed(3)}</span>
+                      {r.passed != null && (
+                        <span
+                          className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-mono border ${
+                            r.passed === 1
+                              ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                              : "bg-danger/10 border-danger/20 text-danger"
+                          }`}
+                        >
+                          {r.passed === 1 ? "✓ pass" : "✗ fail"}
+                        </span>
+                      )}
                     </span>
                     <span className="text-muted text-xs">
                       {expanded.has(r.test_idx) ? "▲ collapse" : "▼ expand"}

@@ -98,6 +98,7 @@ TestCase(
     input={"input": "Explain closures."},
     expected="A closure captures variables from its enclosing scope.",  # optional
     rubric={"factuality": 0.5, "brevity": 0.5},                        # optional
+    threshold=0.7,                                                       # pass/fail cutoff on judge_score (default 0.7)
 )
 ```
 
@@ -116,6 +117,13 @@ objective = judge_score
 - Fallback: regex `[01](?:\.\d+)?` if JSON parse fails
 - Respects `TestCase.expected` — includes in prompt if set
 
+### Pass-Rate
+- Each `TestCase` has `threshold: float = 0.7` — the minimum `judge_score` to count as passing
+- `run_prompt()` computes `passed = judge.score >= testcase.threshold` per case
+- `run_dataset()` aggregates `pass_rate = passed_count / total` → stored in `runs.pass_rate`, logged to MLflow
+- `run_results.passed` stores per-case 0/1; dashboard shows "Best Pass Rate" KPI + column; run detail shows ✓/✗ badge per case
+- Suite cases store `threshold` in the `suite_cases` table; exposed via `SuiteCaseRequest.threshold`
+
 ### Regression Detection
 - After each run: `get_best_for_prompt(prompt.name)` → compare objectives
 - If `new_objective < prev_best` → `regression=True`, `warnings.warn()`
@@ -127,10 +135,10 @@ objective = judge_score
 ## SQLite Schema
 
 ```sql
-runs           -- one row per run (avg scores, regression flag, MLflow run_id)
-run_results    -- one row per testcase per run (output, judge, criteria, metrics)
+runs           -- one row per run (avg scores, pass_rate, regression flag, MLflow run_id)
+run_results    -- one row per testcase per run (output, judge, criteria, metrics, passed)
 suites         -- named test collections
-suite_cases    -- individual testcases belonging to a suite
+suite_cases    -- individual testcases belonging to a suite (incl. threshold)
 ```
 
 DB path: `PROMPTOPS_DB` env var (default `./promptops.db`)
@@ -235,3 +243,6 @@ docker compose up --build
 - **Default harness is `LLMJudgeHarness`** — `run_dataset()` and `run_prompt()` accept `harness: EvalHarness | None`; `None` → `LLMJudgeHarness` constructed internally. Pass `DeepEvalHarness(adapter, model)` to use DeepEval.
 - **DeepEval integration test suite** — `pytest -m deepeval promptops/tests/evals/ -v` requires Ollama running; skips gracefully if unreachable.
 - **`eval_harness` in `/run` body** — accepted values: `null` (default LLM judge) or `"deepeval"`; unknown values return HTTP 400.
+- **`TestCase.threshold`** — default `0.7`; `passed = judge_score >= threshold` computed in `run_prompt()`, stored in `run_results.passed`.
+- **`pass_rate`** — aggregated in `run_dataset()` as `passed_count / total`; stored in `runs.pass_rate`; logged to MLflow as `pass_rate` metric; returned in API response.
+- **Suite case threshold** — stored in `suite_cases.threshold`; passed through when constructing `TestCase` from suite cases in all three endpoints (`/run`, `/optimize`, `/optimize/stream`).

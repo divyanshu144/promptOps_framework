@@ -10,3 +10,4 @@ class TestCase:
     input: Dict[str, Any]
     expected: str | None = None
     rubric: Dict[str, Any] | None = None
+    threshold: float = 0.7

@@ -77,10 +77,12 @@ async def run_prompt(
         format_valid=format_valid,
     )
 
+    passed = judge.score >= testcase.threshold
     judge_info = {
         "judge_score": judge.score,
         "judge_criteria": judge.criteria,
         "judge_reasoning": judge.reasoning,
+        "passed": passed,
     }
     return resp.output, metrics, judge_info
 
@@ -199,9 +201,11 @@ async def run_dataset(
 
         avg_score = sum(m.judge_score for m in metrics_list) / max(len(metrics_list), 1)
         avg_objective = sum(m.objective for m in metrics_list) / max(len(metrics_list), 1)
+        pass_rate = sum(1 for ji in judge_infos if ji["passed"]) / max(len(judge_infos), 1)
 
         mlflow.log_metric("avg_judge_score", avg_score)
         mlflow.log_metric("avg_objective", avg_objective)
+        mlflow.log_metric("pass_rate", pass_rate)
         mlflow.log_text("\n---\n".join(outputs), "outputs.txt")
 
     # Regression detection: compare against previous best for this prompt
@@ -225,6 +229,7 @@ async def run_dataset(
         "mlflow_uri": mlflow_uri,
         "judge_score": avg_score,
         "objective": avg_objective,
+        "pass_rate": pass_rate,
         "prompt_tokens": None,
         "completion_tokens": None,
         "total_tokens": None,
@@ -248,12 +253,14 @@ async def run_dataset(
             judge_criteria=judge_info["judge_criteria"],
             judge_reasoning=judge_info["judge_reasoning"],
             metrics=metrics.model_dump(),
+            passed=judge_info["passed"],
         )
 
     return {
         "run_id": db_run_id,
         "avg_judge_score": avg_score,
         "avg_objective": avg_objective,
+        "pass_rate": pass_rate,
         "outputs": outputs,
         "regression": regression,
         "regression_warning": regression_warning,

@@ -40,6 +40,7 @@ def init_db() -> None:
                 mlflow_uri TEXT,
                 judge_score REAL,
                 objective REAL,
+                pass_rate REAL,
                 prompt_tokens INTEGER,
                 completion_tokens INTEGER,
                 total_tokens INTEGER,
@@ -64,6 +65,7 @@ def init_db() -> None:
                 judge_criteria TEXT,
                 judge_reasoning TEXT,
                 metrics TEXT NOT NULL,
+                passed INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             """
@@ -88,20 +90,23 @@ def init_db() -> None:
                 input TEXT NOT NULL,
                 expected TEXT,
                 rubric TEXT,
+                threshold REAL DEFAULT 0.7,
                 order_idx INTEGER DEFAULT 0
             );
             """
         )
 
         # Best-effort migrations for existing DBs
-        for col, col_type in [
-            ("run_id", "TEXT"),
-            ("mlflow_uri", "TEXT"),
-            ("regression", "INTEGER DEFAULT 0"),
+        for table, col, col_type in [
+            ("runs", "run_id", "TEXT"),
+            ("runs", "mlflow_uri", "TEXT"),
+            ("runs", "regression", "INTEGER DEFAULT 0"),
+            ("runs", "pass_rate", "REAL"),
+            ("run_results", "passed", "INTEGER"),
+            ("suite_cases", "threshold", "REAL DEFAULT 0.7"),
         ]:
             try:
-                col_name = col.split()[0]
-                cur.execute(f"ALTER TABLE runs ADD COLUMN {col_name} {col_type.split()[0]}")
+                cur.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}")
             except sqlite3.OperationalError:
                 pass
 
@@ -113,9 +118,9 @@ def insert_run(data: dict[str, Any]) -> int:
             """
             INSERT INTO runs (
                 prompt_name, prompt_hash, model, run_id, mlflow_uri, judge_score, objective,
-                prompt_tokens, completion_tokens, total_tokens, latency_ms, context_window_used,
-                regression
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                pass_rate, prompt_tokens, completion_tokens, total_tokens, latency_ms,
+                context_window_used, regression
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data["prompt_name"],
@@ -125,6 +130,7 @@ def insert_run(data: dict[str, Any]) -> int:
                 data.get("mlflow_uri"),
                 data.get("judge_score"),
                 data.get("objective"),
+                data.get("pass_rate"),
                 data.get("prompt_tokens"),
                 data.get("completion_tokens"),
                 data.get("total_tokens"),
@@ -146,6 +152,7 @@ def insert_run_result(
     judge_criteria: dict[str, float] | None,
     judge_reasoning: str | None,
     metrics: dict[str, Any],
+    passed: bool | None = None,
 ) -> None:
     with _conn() as conn:
         cur = conn.cursor()
@@ -153,8 +160,8 @@ def insert_run_result(
             """
             INSERT INTO run_results (
                 run_id, test_idx, input, expected, output,
-                judge_score, judge_criteria, judge_reasoning, metrics
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                judge_score, judge_criteria, judge_reasoning, metrics, passed
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 run_id,
@@ -166,6 +173,7 @@ def insert_run_result(
                 json.dumps(judge_criteria) if judge_criteria else None,
                 judge_reasoning,
                 json.dumps(metrics),
+                1 if passed else 0 if passed is not None else None,
             ),
         )
 
@@ -317,17 +325,19 @@ def add_suite_case(
     input_data: dict[str, Any],
     expected: str | None = None,
     rubric: dict[str, Any] | None = None,
+    threshold: float = 0.7,
     order_idx: int = 0,
 ) -> int:
     with _conn() as conn:
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO suite_cases (suite_id, input, expected, rubric, order_idx) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO suite_cases (suite_id, input, expected, rubric, threshold, order_idx) VALUES (?, ?, ?, ?, ?, ?)",
             (
                 suite_id,
                 json.dumps(input_data),
                 expected,
                 json.dumps(rubric) if rubric else None,
+                threshold,
                 order_idx,
             ),
         )

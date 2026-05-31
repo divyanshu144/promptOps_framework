@@ -117,6 +117,7 @@ class SuiteCaseRequest(BaseModel):
     input: dict[str, Any]
     expected: str | None = None
     rubric: dict[str, Any] | None = None
+    threshold: float = 0.7
     order_idx: int = 0
 
 
@@ -152,6 +153,7 @@ async def run(req: RunRequest) -> dict[str, Any]:
                 input=sc["input"],
                 expected=sc.get("expected"),
                 rubric=sc.get("rubric"),
+                threshold=sc.get("threshold", 0.7),
             )
             for sc in suite_cases
         ]
@@ -201,6 +203,7 @@ async def optimize(req: OptimizeRequest) -> dict[str, Any]:
                 input=sc["input"],
                 expected=sc.get("expected"),
                 rubric=sc.get("rubric"),
+                threshold=sc.get("threshold", 0.7),
             )
             for sc in suite_cases
         ]
@@ -240,7 +243,12 @@ async def optimize_stream(req: OptimizeRequest) -> StreamingResponse:
                         await queue.put(json.dumps({"type": "error", "message": "Suite not found or has no cases"}))
                         return
                     testcases = [
-                        TestCase(input=sc["input"], expected=sc.get("expected"), rubric=sc.get("rubric"))
+                        TestCase(
+                            input=sc["input"],
+                            expected=sc.get("expected"),
+                            rubric=sc.get("rubric"),
+                            threshold=sc.get("threshold", 0.7),
+                        )
                         for sc in suite_cases
                     ]
                 else:
@@ -257,8 +265,10 @@ async def optimize_stream(req: OptimizeRequest) -> StreamingResponse:
                 )
                 await queue.put(json.dumps({
                     "type": "done",
+                    "baseline_result": results["baseline_result"],
                     "best_prompt": results["best_prompt"].model_dump(),
                     "best_result": results["best_result"],
+                    "comparison": results["comparison"],
                 }))
             except Exception as e:
                 await queue.put(json.dumps({"type": "error", "message": str(e)}))
@@ -362,6 +372,7 @@ def add_suite_case_endpoint(suite_id: int, req: SuiteCaseRequest) -> dict[str, A
         input_data=req.input,
         expected=req.expected,
         rubric=req.rubric,
+        threshold=req.threshold,
         order_idx=req.order_idx,
     )
     return {"case_id": case_id}

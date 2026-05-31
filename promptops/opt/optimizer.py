@@ -30,8 +30,12 @@ async def optimize_prompt(
     await _notify("Evaluating base prompt…")
     best_prompt = base_prompt
     best_result = await run_dataset(adapter, best_prompt, testcases, judge_model)
+    baseline_result = best_result
     prev_best_objective = best_result["avg_objective"]
-    await _notify(f"Base score: {prev_best_objective:.4f}")
+    await _notify(
+        f"Base score: {prev_best_objective:.4f}; "
+        f"pass rate: {best_result.get('pass_rate', 0.0) * 100:.0f}%"
+    )
 
     for i in range(iterations):
         candidates = list(basic_mutations(best_prompt, testcases=testcases))
@@ -67,6 +71,7 @@ async def optimize_prompt(
         current_objective = best_result["avg_objective"]
         await _notify(
             f"Iteration {i + 1} done. Best: {current_objective:.4f} "
+            f"pass rate: {best_result.get('pass_rate', 0.0) * 100:.0f}% "
             f"(prompt: {best_prompt.name})"
         )
 
@@ -76,7 +81,21 @@ async def optimize_prompt(
         prev_best_objective = current_objective
 
     await _notify("Optimization complete.")
+    comparison = {
+        "baseline_prompt_name": base_prompt.name,
+        "best_prompt_name": best_prompt.name,
+        "objective_delta": best_result.get("avg_objective", 0.0)
+        - baseline_result.get("avg_objective", 0.0),
+        "judge_score_delta": best_result.get("avg_judge_score", 0.0)
+        - baseline_result.get("avg_judge_score", 0.0),
+        "pass_rate_delta": best_result.get("pass_rate", 0.0)
+        - baseline_result.get("pass_rate", 0.0),
+        "improved": best_result.get("avg_objective", 0.0)
+        > baseline_result.get("avg_objective", 0.0),
+    }
     return {
+        "baseline_result": baseline_result,
         "best_prompt": best_prompt,
         "best_result": best_result,
+        "comparison": comparison,
     }

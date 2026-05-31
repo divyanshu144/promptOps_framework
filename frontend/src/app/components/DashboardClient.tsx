@@ -11,6 +11,7 @@ type Run = {
   model?: string;
   objective?: number;
   judge_score?: number;
+  pass_rate?: number;
   created_at?: string;
   run_id?: string;
   prompt_hash?: string;
@@ -160,6 +161,10 @@ export default function DashboardClient({
   const bestObjective = Math.max(0, ...runs.map((r) => Number(r.objective || 0)));
   const bestJudge = Math.max(0, ...runs.map((r) => Number(r.judge_score || 0)));
   const regressions = runs.filter((r) => r.regression === 1).length;
+  const runsWithPassRate = runs.filter((r) => r.pass_rate != null);
+  const bestPassRate = runsWithPassRate.length > 0
+    ? Math.max(...runsWithPassRate.map((r) => Number(r.pass_rate)))
+    : null;
 
   useEffect(() => {
     const refresh = async () => {
@@ -216,7 +221,7 @@ export default function DashboardClient({
       )}
 
       {/* KPIs */}
-      <section className="grid gap-2.5 grid-cols-2 md:grid-cols-4 mt-5">
+      <section className="grid gap-2.5 grid-cols-2 md:grid-cols-5 mt-5">
         <KpiCard label="Total Runs" value={String(totalRuns)} />
         <KpiCard
           label="Best Objective"
@@ -228,6 +233,11 @@ export default function DashboardClient({
           label="Best Judge Score"
           value={bestJudge > 0 ? bestJudge.toFixed(4) : "—"}
           sub="averaged 3×"
+        />
+        <KpiCard
+          label="Best Pass Rate"
+          value={bestPassRate != null ? `${(bestPassRate * 100).toFixed(0)}%` : "—"}
+          sub="vs threshold"
         />
         <KpiCard
           label="Regressions"
@@ -330,12 +340,12 @@ export default function DashboardClient({
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                {["Prompt", "Model", "Objective", "Judge", "Created", ""].map((h, i) => (
+                {["Prompt", "Model", "Objective", "Judge", "Pass Rate", "Created", ""].map((h, i) => (
                   <th
                     key={i}
                     className={`px-4 py-2.5 text-[10px] font-mono uppercase tracking-widest text-muted/70 ${
-                      i >= 2 && i <= 3 ? "text-right" : i === 5 ? "text-right" : "text-left"
-                    } ${i === 4 ? "hidden md:table-cell" : ""}`}
+                      i >= 2 && i <= 4 ? "text-right" : i === 6 ? "text-right" : "text-left"
+                    } ${i === 5 ? "hidden md:table-cell" : ""}`}
                   >
                     {h}
                   </th>
@@ -345,7 +355,7 @@ export default function DashboardClient({
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td className="px-4 py-8 text-center text-muted text-sm" colSpan={6}>
+                  <td className="px-4 py-8 text-center text-muted text-sm" colSpan={7}>
                     No runs yet.{" "}
                     <Link
                       href="/playground"
@@ -386,6 +396,9 @@ export default function DashboardClient({
                   </td>
                   <td className="px-4 py-3 text-right font-mono tabular-nums text-muted text-sm">
                     {Number(r.judge_score || 0).toFixed(4)}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums text-muted text-sm">
+                    {r.pass_rate != null ? `${(Number(r.pass_rate) * 100).toFixed(0)}%` : "—"}
                   </td>
                   <td className="px-4 py-3 text-muted font-mono text-[11px] hidden md:table-cell">
                     {r.created_at ?? "—"}

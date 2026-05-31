@@ -37,6 +37,7 @@ def _run(**kwargs) -> dict:
         "mlflow_uri": "./mlruns",
         "judge_score": 0.8,
         "objective": 0.75,
+        "pass_rate": 1.0,
         "prompt_tokens": 100,
         "completion_tokens": 50,
         "total_tokens": 150,
@@ -54,6 +55,7 @@ def test_insert_and_get_run():
     assert r is not None
     assert r["prompt_name"] == "test_prompt"
     assert r["objective"] == pytest.approx(0.75)
+    assert r["pass_rate"] == pytest.approx(1.0)
 
 
 def test_get_run_missing_returns_none():
@@ -94,6 +96,7 @@ def test_insert_run_result_round_trips_json():
         judge_criteria={"quality": 0.8},
         judge_reasoning="Good response",
         metrics={"objective": 0.75},
+        passed=True,
     )
     results = get_run_results(rid)
     assert len(results) == 1
@@ -102,6 +105,7 @@ def test_insert_run_result_round_trips_json():
     assert r["input"] == {"input": "hello"}
     assert r["judge_criteria"] == {"quality": 0.8}
     assert r["expected"] == "world"
+    assert r["passed"] == 1
 
 
 def test_get_prompt_history_ordered_asc():
@@ -149,13 +153,21 @@ def test_suite_full_crud():
     assert suite["name"] == "my-suite"
     assert suite["description"] == "a test suite"
 
-    cid1 = add_suite_case(sid, {"input": "q1"}, expected="a1", rubric={"quality": 1.0})
+    cid1 = add_suite_case(
+        sid,
+        {"input": "q1"},
+        expected="a1",
+        rubric={"quality": 1.0},
+        threshold=0.85,
+    )
     add_suite_case(sid, {"input": "q2"})
     cases = get_suite_cases(sid)
     assert len(cases) == 2
     assert cases[0]["input"] == {"input": "q1"}
     assert cases[0]["rubric"] == {"quality": 1.0}
+    assert cases[0]["threshold"] == pytest.approx(0.85)
     assert cases[1]["rubric"] is None
+    assert cases[1]["threshold"] == pytest.approx(0.7)
 
     remove_suite_case(cid1)
     assert len(get_suite_cases(sid)) == 1

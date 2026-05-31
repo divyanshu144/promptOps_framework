@@ -23,6 +23,7 @@ Prompt engineering happens in notebooks, chat windows, and scattered scripts. Th
 | **Automatic optimization** | 7-8 mutations + LLM rewriter evaluated in parallel → greedy best-of-N with early stopping |
 | **Streaming optimizer** | `/optimize/stream` SSE endpoint — watch candidates score in real time |
 | **A/B testing** | Side-by-side prompt comparison with word-level diff |
+| **Pass-rate tracking** | Per-case pass/fail threshold → `pass_rate` aggregated per run, stored in DB, shown on dashboard |
 | **Test suites** | Persistent named collections of test cases with expected outputs and rubrics |
 | **Prompt history** | Per-prompt run history with aggregate stats and trend view |
 | **Experiment tracking** | MLflow logs params, metrics, and output artifacts for every run |
@@ -62,9 +63,10 @@ Prompt engineering happens in notebooks, chat windows, and scattered scripts. Th
 
 1. `run_dataset()` — health-checks the provider, opens an MLflow run
 2. All test cases evaluated **in parallel** via `asyncio.gather`
-3. Each case: render template → generate output → `harness.evaluate()` → compute objective
+3. Each case: render template → generate output → `harness.evaluate()` → compute objective → check `judge_score >= threshold` → `passed` flag
 4. Regression check against previous best for the same prompt
-5. Results written to SQLite (`runs` + `run_results` tables) and MLflow
+5. `pass_rate` (% of cases that passed) aggregated, logged to MLflow, stored in SQLite
+6. Results written to SQLite (`runs` + `run_results` tables) and MLflow
 
 ---
 
@@ -93,6 +95,9 @@ The LLM-as-judge pattern is custom and unvalidated against the broader industry.
 
 **Why parallel candidate evaluation?**
 The optimization loop generates 7-8 mutations + an LLM rewrite. Sequential eval would be impractical. With `asyncio.gather`, all candidates run simultaneously.
+
+**Why pass-rate alongside the objective?**
+The objective is a continuous score good for driving the optimizer — small improvements are visible even when no new cases start passing. Pass-rate is binary (clear the threshold or not) and more interpretable for communicating quality: "we went from 60% → 80% on our golden set across 3 optimizer iterations." Both are tracked: objective guides the optimizer; pass-rate tells the story.
 
 **Why SQLite over Postgres?**
 Zero-ops, single-file, portable. MLflow handles the metrics/artifact store. SQLite handles structured queries (leaderboard, per-case breakdown, suite management) with no infra overhead.
@@ -146,6 +151,17 @@ pytest -m deepeval promptops/tests/evals/ -v
 ```
 
 To add a new eval framework: implement `EvalHarness.evaluate()`, register it in the `/run` endpoint's `eval_harness` guard.
+
+### Pass-Rate Tracking
+
+Each `TestCase` carries a `threshold` (default `0.7`). After the judge scores an output, `passed = judge_score >= threshold`. At the end of each run:
+
+- `pass_rate = passed_count / total_cases` is stored in the `runs` table and logged to MLflow
+- Per-case `passed` (0/1) is stored in `run_results`
+- Dashboard shows a **Best Pass Rate** KPI card and a Pass Rate column in the runs table
+- Run detail shows a green **✓ pass** / red **✗ fail** badge on every case row
+
+Suite cases store their own `threshold` so a golden set can have per-case pass bars. The objective still drives the optimizer (continuous signal); pass-rate is the human-readable quality story.
 
 ### Prompt History
 
@@ -234,7 +250,7 @@ promptops/
 ├── api/
 │   └── app.py             # FastAPI — all endpoints including /optimize/stream SSE
 ├── tests/
-│   └── ...                # pytest suite (49 tests covering core, eval, opt, store)
+│   └── ...                # pytest suite (53 tests covering core, eval, opt, store)
 └── tests/evals/           # DeepEval integration tests (require Ollama; skips if unavailable)
 └── cli.py                 # Typer CLI
 
@@ -256,6 +272,13 @@ frontend/src/app/
 
 ```bash
 pytest tests/ -v
+```
+
+All 53 tests run without a live model provider — they use mocked adapters.
+
+```bash
+# Integration tests (require Ollama running)
+pytest -m deepeval promptops/tests/evals/ -v
 ```
 
 ---
