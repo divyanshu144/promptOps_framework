@@ -2,6 +2,6 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "sh -c 'node server.js'"
+startCommand = "sh -c 'PORT=3000 HOSTNAME=0.0.0.0 node server.js'"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
