@@ -47,6 +47,11 @@ def init_db() -> None:
                 latency_ms REAL,
                 context_window_used REAL,
                 regression INTEGER DEFAULT 0,
+                suite_id INTEGER,
+                eval_harness TEXT,
+                release_label TEXT,
+                gate_status TEXT,
+                aggregate_metrics TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             """
@@ -102,8 +107,16 @@ def init_db() -> None:
             ("runs", "mlflow_uri", "TEXT"),
             ("runs", "regression", "INTEGER DEFAULT 0"),
             ("runs", "pass_rate", "REAL"),
+            ("runs", "suite_id", "INTEGER"),
+            ("runs", "eval_harness", "TEXT"),
+            ("runs", "release_label", "TEXT"),
+            ("runs", "gate_status", "TEXT"),
+            ("runs", "aggregate_metrics", "TEXT"),
             ("run_results", "passed", "INTEGER"),
             ("suite_cases", "threshold", "REAL DEFAULT 0.7"),
+            ("suite_cases", "expected_tools", "TEXT"),
+            ("suite_cases", "relevant_doc_ids", "TEXT"),
+            ("suite_cases", "expected_claims", "TEXT"),
         ]:
             try:
                 cur.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}")
@@ -119,8 +132,9 @@ def insert_run(data: dict[str, Any]) -> int:
             INSERT INTO runs (
                 prompt_name, prompt_hash, model, run_id, mlflow_uri, judge_score, objective,
                 pass_rate, prompt_tokens, completion_tokens, total_tokens, latency_ms,
-                context_window_used, regression
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                context_window_used, regression, suite_id, eval_harness, release_label,
+                gate_status, aggregate_metrics
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data["prompt_name"],
@@ -137,6 +151,11 @@ def insert_run(data: dict[str, Any]) -> int:
                 data.get("latency_ms"),
                 data.get("context_window_used"),
                 1 if data.get("regression") else 0,
+                data.get("suite_id"),
+                data.get("eval_harness"),
+                data.get("release_label"),
+                data.get("gate_status"),
+                json.dumps(data.get("aggregate_metrics")) if data.get("aggregate_metrics") else None,
             ),
         )
         return cur.lastrowid  # type: ignore[return-value]
@@ -188,8 +207,11 @@ def get_run_results(run_id: int) -> list[dict[str, Any]]:
         results = []
         for row in cur.fetchall():
             d = dict(row)
+            if d.get("aggregate_metrics"):
+                d["aggregate_metrics"] = json.loads(d["aggregate_metrics"])
             d["input"] = json.loads(d["input"]) if d["input"] else {}
             d["metrics"] = json.loads(d["metrics"]) if d["metrics"] else {}
+            d["failure_labels"] = d["metrics"].get("failure_labels", [])
             d["judge_criteria"] = json.loads(d["judge_criteria"]) if d["judge_criteria"] else {}
             results.append(d)
         return results
@@ -203,7 +225,12 @@ def get_best_for_prompt(prompt_name: str) -> dict[str, Any] | None:
             (prompt_name,),
         )
         row = cur.fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        data = dict(row)
+        if data.get("aggregate_metrics"):
+            data["aggregate_metrics"] = json.loads(data["aggregate_metrics"])
+        return data
 
 
 def get_prompt_history(prompt_name: str, limit: int = 100) -> list[dict[str, Any]]:
@@ -213,7 +240,7 @@ def get_prompt_history(prompt_name: str, limit: int = 100) -> list[dict[str, Any
             "SELECT * FROM runs WHERE prompt_name = ? ORDER BY created_at ASC LIMIT ?",
             (prompt_name, limit),
         )
-        return [dict(row) for row in cur.fetchall()]
+        return [_decode_run_row(row) for row in cur.fetchall()]
 
 
 def list_prompt_names() -> list[dict[str, Any]]:
@@ -242,7 +269,7 @@ def top_runs(limit: int = 10) -> list[dict[str, Any]]:
             "SELECT * FROM runs ORDER BY objective DESC LIMIT ?",
             (limit,),
         )
-        return [dict(row) for row in cur.fetchall()]
+        return [_decode_run_row(row) for row in cur.fetchall()]
 
 
 def recent_runs(limit: int = 50) -> list[dict[str, Any]]:
@@ -252,7 +279,7 @@ def recent_runs(limit: int = 50) -> list[dict[str, Any]]:
             "SELECT * FROM runs ORDER BY created_at DESC LIMIT ?",
             (limit,),
         )
-        return [dict(row) for row in cur.fetchall()]
+        return [_decode_run_row(row) for row in cur.fetchall()]
 
 
 def get_run(run_id: int) -> dict[str, Any] | None:
@@ -260,7 +287,20 @@ def get_run(run_id: int) -> dict[str, Any] | None:
         cur = conn.cursor()
         cur.execute("SELECT * FROM runs WHERE id = ?", (run_id,))
         row = cur.fetchone()
-        return dict(row) if row else None
+        return _decode_run_row(row) if row else None
+
+
+def _decode_run_row(row: sqlite3.Row) -> dict[str, Any]:
+    data = dict(row)
+    if data.get("aggregate_metrics"):
+        data["aggregate_metrics"] = json.loads(data["aggregate_metrics"])
+    return data
+
+
+def update_run_gate(run_id: int, gate_status: str) -> None:
+    with _conn() as conn:
+        cur = conn.cursor()
+        cur.execute("UPDATE runs SET gate_status = ? WHERE id = ?", (gate_status, run_id))
 
 
 # --- Suite CRUD ---
@@ -316,6 +356,9 @@ def get_suite_cases(suite_id: int) -> list[dict[str, Any]]:
             d = dict(row)
             d["input"] = json.loads(d["input"]) if d["input"] else {}
             d["rubric"] = json.loads(d["rubric"]) if d["rubric"] else None
+            d["expected_tools"] = json.loads(d["expected_tools"]) if d.get("expected_tools") else None
+            d["relevant_doc_ids"] = json.loads(d["relevant_doc_ids"]) if d.get("relevant_doc_ids") else None
+            d["expected_claims"] = json.loads(d["expected_claims"]) if d.get("expected_claims") else None
             results.append(d)
         return results
 
@@ -327,11 +370,19 @@ def add_suite_case(
     rubric: dict[str, Any] | None = None,
     threshold: float = 0.7,
     order_idx: int = 0,
+    expected_tools: list[str] | None = None,
+    relevant_doc_ids: list[str] | None = None,
+    expected_claims: list[str] | None = None,
 ) -> int:
     with _conn() as conn:
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO suite_cases (suite_id, input, expected, rubric, threshold, order_idx) VALUES (?, ?, ?, ?, ?, ?)",
+            """
+            INSERT INTO suite_cases (
+                suite_id, input, expected, rubric, threshold, order_idx,
+                expected_tools, relevant_doc_ids, expected_claims
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
             (
                 suite_id,
                 json.dumps(input_data),
@@ -339,6 +390,9 @@ def add_suite_case(
                 json.dumps(rubric) if rubric else None,
                 threshold,
                 order_idx,
+                json.dumps(expected_tools) if expected_tools else None,
+                json.dumps(relevant_doc_ids) if relevant_doc_ids else None,
+                json.dumps(expected_claims) if expected_claims else None,
             ),
         )
         return cur.lastrowid  # type: ignore[return-value]

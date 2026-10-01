@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { providers, defaultModel } from "../../lib/providers";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -26,6 +27,7 @@ export default function OptimizePage() {
   const [system, setSystem] = useState("You are a helpful assistant.");
   const [template, setTemplate] = useState("{input}");
   const [model, setModel] = useState("llama3.1");
+  const [judgeProvider, setJudgeProvider] = useState("");
   const [judgeModel, setJudgeModel] = useState("llama3.1");
   const [iterations, setIterations] = useState(2);
   const [useRewriter, setUseRewriter] = useState(true);
@@ -61,6 +63,7 @@ export default function OptimizePage() {
         provider,
       },
       judge_model: judgeModel,
+      judge_provider: judgeProvider || undefined,
       iterations: Math.max(1, Math.min(5, iterations)),
       use_rewriter: useRewriter,
     };
@@ -165,6 +168,10 @@ export default function OptimizePage() {
               </div>
               <div>
                 <label className={labelCls}>Judge Model</label>
+                <select aria-label="Judge provider" className={inputCls} value={judgeProvider} onChange={(e) => { setJudgeProvider(e.target.value); setJudgeModel(defaultModel(e.target.value || provider)); }}>
+                  <option value="">Same as generation provider</option>
+                  {providers.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                </select>
                 <input className={inputCls} value={judgeModel} onChange={(e) => setJudgeModel(e.target.value)} />
               </div>
               <div>
@@ -180,10 +187,8 @@ export default function OptimizePage() {
               </div>
               <div>
                 <label className={labelCls}>Provider</label>
-                <select className={inputCls} value={provider} onChange={(e) => setProvider(e.target.value)}>
-                  <option value="ollama">Ollama</option>
-                  <option value="openai">OpenAI</option>
-                  <option value="anthropic">Anthropic</option>
+                <select className={inputCls} value={provider} onChange={(e) => { setProvider(e.target.value); setModel(defaultModel(e.target.value)); if (!judgeProvider) setJudgeModel(defaultModel(e.target.value)); }}>
+                  {providers.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                 </select>
               </div>
             </div>

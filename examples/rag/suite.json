@@ -1,0 +1,70 @@
+{
+  "name": "support-rag",
+  "description": "Extractive support answers with source citations",
+  "cases": [
+    {
+      "input": {
+        "question": "How long is the return window?",
+        "contexts": [
+          {
+            "id": "returns",
+            "text": "Returns are accepted within 30 days."
+          }
+        ],
+        "expected_citations": [
+          "returns"
+        ]
+      },
+      "expected": "Returns are accepted within 30 days.",
+      "threshold": 0.85
+    },
+    {
+      "input": {
+        "question": "When do orders ship?",
+        "contexts": [
+          {
+            "id": "shipping",
+            "text": "Orders ship within 2 business days."
+          }
+        ],
+        "expected_citations": [
+          "shipping"
+        ]
+      },
+      "expected": "Orders ship within 2 business days.",
+      "threshold": 0.85
+    },
+    {
+      "input": {
+        "question": "How long is the warranty?",
+        "contexts": [
+          {
+            "id": "warranty",
+            "text": "The warranty lasts 12 months."
+          }
+        ],
+        "expected_citations": [
+          "warranty"
+        ]
+      },
+      "expected": "The warranty lasts 12 months.",
+      "threshold": 0.85
+    },
+    {
+      "input": {
+        "question": "When is support available?",
+        "contexts": [
+          {
+            "id": "support",
+            "text": "Support is available Monday through Friday."
+          }
+        ],
+        "expected_citations": [
+          "support"
+        ]
+      },
+      "expected": "Support is available Monday through Friday.",
+      "threshold": 0.85
+    }
+  ]
+}

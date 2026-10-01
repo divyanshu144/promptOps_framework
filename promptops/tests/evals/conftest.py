@@ -26,10 +26,13 @@ def adapter():
 def default_prompt():
     return Prompt(
         name="eval_test_prompt",
-        system="You are a helpful assistant.",
+        system=(
+            "You answer directly and concisely. For summarization requests, return only "
+            "a one-sentence summary of the facts, with no preamble or extra detail."
+        ),
         template="{input}",
         model="llama3.1",
-        params={"temperature": 0.2, "max_tokens": 200},
+        params={"temperature": 0.0, "max_tokens": 80},
         context_limit=4096,
         provider="ollama",
     )

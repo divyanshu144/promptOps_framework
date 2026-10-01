@@ -1,0 +1,28 @@
+name: PromptOps offline quality gate
+on: [push, pull_request]
+jobs:
+  evaluation:
+    runs-on: ubuntu-latest
+    env:
+      PROMPTOPS_DB: ${{ github.workspace }}/ci-promptops.db
+      MLFLOW_TRACKING_URI: ${{ github.workspace }}/ci-mlruns
+      MLFLOW_ALLOW_FILE_STORE: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e . pytest pytest-asyncio
+      - run: python -m pytest tests/
+      - name: Gate extractive RAG fixture quality
+        run: >-
+          promptops ci --suite examples/rag/suite.json --prompt optimized
+          --harness rag --replay examples/rag/optimized-responses.json
+          --min-pass-rate 0.85
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: promptops-evaluation
+          path: |
+            ci-promptops.db
+            ci-mlruns/

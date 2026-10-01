@@ -1,0 +1,38 @@
+{
+  "Sources: [{'id': 'returns', 'text': 'Returns are accepted within 30 days.'}]\nQuestion: How long is the return window?": {
+    "output": "Returns are accepted within 30 days. [returns]",
+    "prompt_tokens": 90,
+    "completion_tokens": 60,
+    "latency_ms": 800,
+    "raw": {
+      "cost_usd": 0.0003
+    }
+  },
+  "Sources: [{'id': 'shipping', 'text': 'Orders ship within 2 business days.'}]\nQuestion: When do orders ship?": {
+    "output": "Orders ship within 2 business days.",
+    "prompt_tokens": 90,
+    "completion_tokens": 60,
+    "latency_ms": 800,
+    "raw": {
+      "cost_usd": 0.0003
+    }
+  },
+  "Sources: [{'id': 'warranty', 'text': 'The warranty lasts 12 months.'}]\nQuestion: How long is the warranty?": {
+    "output": "The warranty lasts 24 months. [warranty]",
+    "prompt_tokens": 90,
+    "completion_tokens": 60,
+    "latency_ms": 800,
+    "raw": {
+      "cost_usd": 0.0003
+    }
+  },
+  "Sources: [{'id': 'support', 'text': 'Support is available Monday through Friday.'}]\nQuestion: When is support available?": {
+    "output": "Support is available all day every day.",
+    "prompt_tokens": 90,
+    "completion_tokens": 60,
+    "latency_ms": 800,
+    "raw": {
+      "cost_usd": 0.0003
+    }
+  }
+}

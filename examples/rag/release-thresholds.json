@@ -1,0 +1,5 @@
+{
+  "minimums": {"task_success_rate": 0.9, "groundedness_score": 0.95, "citation_coverage": 0.95, "answer_relevance": 0.9},
+  "maximums": {"hallucination_rate": 0.05, "latency_p95_ms": 8000},
+  "max_regression": {"task_success_rate": 0.02, "groundedness_score": 0.03}
+}

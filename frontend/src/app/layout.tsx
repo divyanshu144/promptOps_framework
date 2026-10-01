@@ -4,7 +4,7 @@ import NavBar from "./components/NavBar";
 
 export const metadata: Metadata = {
   title: "PromptOps Dashboard",
-  description: "Prompt-as-code optimization and evaluation dashboard.",
+  description: "LLM evaluation and prompt observability dashboard.",
 };
 
 export default function RootLayout({

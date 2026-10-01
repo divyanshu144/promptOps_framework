@@ -1,0 +1,11 @@
+{
+  "name": "support-mistral",
+  "system": "Answer only from the supplied sources. Cite every claim with the exact id field of its source, in square brackets immediately after the answer. For a source with id shipping, write [shipping], never [1] or ['shipping']. Do not invent numeric references or include a bibliography. Return only a concise answer and its citation. Do not add unsupported facts.",
+  "template": "Use only these sources: {contexts}\nQuestion: {question}\nAnswer with [source_id] citations.",
+  "model": "mistral-small-latest",
+  "provider": "mistral",
+  "params": {
+    "temperature": 0,
+    "max_tokens": 120
+  }
+}

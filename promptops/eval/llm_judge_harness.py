@@ -22,7 +22,7 @@ class LLMJudgeHarness(EvalHarness):
         return await judge_output(
             adapter=self._adapter,
             model=self._model,
-            rubric=rubric or {"quality": 1.0},
+            rubric={k: v for k, v in (rubric or {}).items() if k != "budgets"} or {"quality": 1.0},
             user_input=user_input,
             assistant_output=actual_output,
             expected=expected_output,

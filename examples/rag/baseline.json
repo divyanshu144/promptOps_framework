@@ -1,0 +1,11 @@
+{
+  "name": "support_baseline",
+  "system": "You are a helpful support assistant.",
+  "template": "Sources: {contexts}\nQuestion: {question}",
+  "model": "llama3.1",
+  "provider": "ollama",
+  "params": {
+    "temperature": 0,
+    "max_tokens": 120
+  }
+}

@@ -1,5 +1,7 @@
 "use client";
 
+import { providers, defaultModel } from "../../lib/providers";
+
 import { useEffect, useRef, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -49,6 +51,7 @@ export default function Playground() {
   const [modelB, setModelB] = useState("llama3.1");
   const [providerB, setProviderB] = useState("ollama");
 
+  const [judgeProvider, setJudgeProvider] = useState("");
   const [judgeModel, setJudgeModel] = useState("llama3.1");
   const [input, setInput] = useState("Explain closures in one sentence.");
   const [rubric, setRubric] = useState('{\n  "quality": 1.0\n}');
@@ -153,6 +156,7 @@ export default function Playground() {
     const body = {
       prompts,
       judge_model: judgeModel,
+      judge_provider: judgeProvider || providerA,
       inputs: input
         .split("\n")
         .map((x) => x.trim())
@@ -195,6 +199,7 @@ export default function Playground() {
         provider: providerA,
       },
       judge_model: judgeModel,
+      judge_provider: judgeProvider || providerA,
     };
 
     try {
@@ -254,11 +259,9 @@ export default function Playground() {
                 <select
                   className="rounded-md border border-border bg-fog/60 px-2 py-1 text-xs text-white outline-none focus:border-accent/40"
                   value={providerA}
-                  onChange={(e) => setProviderA(e.target.value)}
+                  onChange={(e) => { setProviderA(e.target.value); setModelA(defaultModel(e.target.value)); if (!judgeProvider) setJudgeModel(defaultModel(e.target.value)); }}
                 >
-                  <option value="ollama">Ollama</option>
-                  <option value="openai">OpenAI</option>
-                  <option value="anthropic">Anthropic</option>
+                  {providers.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                 </select>
                 <input
                   className="w-32 rounded-md border border-border bg-fog/60 px-2 py-1 text-xs text-white outline-none focus:border-accent/40"
@@ -367,12 +370,10 @@ export default function Playground() {
                   <select
                     className="rounded-md border border-border bg-fog/60 px-2 py-1 text-xs text-white outline-none focus:border-accent/40 disabled:opacity-40"
                     value={providerB}
-                    onChange={(e) => setProviderB(e.target.value)}
+                    onChange={(e) => { setProviderB(e.target.value); setModelB(defaultModel(e.target.value)); }}
                     disabled={!enableB}
                   >
-                    <option value="ollama">Ollama</option>
-                    <option value="openai">OpenAI</option>
-                    <option value="anthropic">Anthropic</option>
+                    {providers.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                   </select>
                   <input
                     className="w-32 rounded-md border border-border bg-fog/60 px-2 py-1 text-xs text-white outline-none focus:border-accent/40 disabled:opacity-40"
@@ -410,7 +411,11 @@ export default function Playground() {
               <div className="p-4 space-y-3">
                 <div>
                   <label className={labelCls}>Judge Model</label>
-                  <input className={inputCls} value={judgeModel} onChange={(e) => setJudgeModel(e.target.value)} />
+                  <select aria-label="Judge provider" className={inputCls} value={judgeProvider} onChange={(e) => { setJudgeProvider(e.target.value); setJudgeModel(defaultModel(e.target.value || providerA)); }}>
+                  <option value="">Same as generation provider</option>
+                  {providers.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                </select>
+                <input className={inputCls} value={judgeModel} onChange={(e) => setJudgeModel(e.target.value)} />
                 </div>
                 <div>
                   <label className={labelCls}>Rubric (JSON)</label>

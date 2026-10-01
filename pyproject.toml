@@ -5,13 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "promptops"
 version = "0.1.0"
-description = "Prompt-as-code framework with evals, optimization, and MLflow tracking."
+description = "LLM evaluation and prompt observability with CI quality gates and MLflow tracking."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.110",
   "uvicorn>=0.27",
   "pydantic>=2.6",
+  "jsonschema>=4",
   "httpx>=0.27",
   "typer>=0.12",
   "mlflow>=2.10",
@@ -32,7 +33,7 @@ include = ["promptops*"]
 line-length = 100
 
 [tool.pytest.ini_options]
-addopts = "-q"
+addopts = "-q -m \"not deepeval\""
 markers = [
   "deepeval: marks tests as DeepEval integration evals (require Ollama running)",
 ]

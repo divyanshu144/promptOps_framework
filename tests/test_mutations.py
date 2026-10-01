@@ -1,6 +1,6 @@
 import pytest
 from promptops.core.prompt import Prompt
-from promptops.opt.mutations import basic_mutations
+from promptops.opt.mutations import basic_mutations, is_param_only_variant
 from promptops.tests.testcase import TestCase
 
 
@@ -65,3 +65,12 @@ def test_json_variants_set_output_format():
     variants = list(basic_mutations(_prompt()))
     json_v = next(v for v in variants if v.name == "base_json")
     assert json_v.output_format == "json"
+
+
+def test_is_param_only_variant_flags_only_lowtokens():
+    variants = list(basic_mutations(_prompt()))
+    for v in variants:
+        if v.name == "base_lowtokens":
+            assert is_param_only_variant(v) is True
+        else:
+            assert is_param_only_variant(v) is False

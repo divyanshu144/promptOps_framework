@@ -1,0 +1,1762 @@
+{
+  "kind": "live_local_models",
+  "timestamp_utc": "2026-10-01T08:35:43.061869+00:00",
+  "generation_model": "llama3.1",
+  "judge_model": "qwen2.5:3b",
+  "platform": "Darwin",
+  "architecture": "arm64",
+  "suite_sha256": "c7808545510fdbe5373c2ddfbd0924989cdbce9e0866222acfe6d37493f872ef",
+  "repeats": 3,
+  "case_count": 4,
+  "case_concurrency": 4,
+  "prompts": {
+    "baseline": {
+      "name": "support_live_baseline",
+      "system": "You are a helpful support assistant.",
+      "template": "Sources: {contexts}\nQuestion: {question}",
+      "model": "llama3.1",
+      "params": {
+        "temperature": 0,
+        "max_tokens": 120,
+        "seed": 42,
+        "num_ctx": 4096,
+        "keep_alive": "30m"
+      },
+      "context_limit": 4096,
+      "output_format": null,
+      "output_schema": null,
+      "provider": "ollama"
+    },
+    "optimized": {
+      "name": "support_live_optimized",
+      "system": "Answer only from the supplied sources. Cite every claim with the exact id field of its source, in square brackets immediately after the answer. For a source with id shipping, write [shipping], never [1] or ['shipping']. Do not invent numeric references or include a bibliography. Return only a concise answer and its citation. Do not add unsupported facts.",
+      "template": "Use only these sources: {contexts}\nQuestion: {question}\nAnswer with [source_id] citations.",
+      "model": "llama3.1",
+      "params": {
+        "temperature": 0,
+        "max_tokens": 120,
+        "seed": 42,
+        "num_ctx": 4096,
+        "keep_alive": "30m"
+      },
+      "context_limit": 4096,
+      "output_format": null,
+      "output_schema": null,
+      "provider": "ollama"
+    }
+  },
+  "runs": [
+    {
+      "variant": "baseline",
+      "repeat": 1,
+      "run_id": 1,
+      "avg_judge_score": 0.0,
+      "avg_objective": -0.80600595754375,
+      "pass_rate": 0.0,
+      "aggregate_metrics": {
+        "task_success_rate": 0.0,
+        "tool_call_accuracy": null,
+        "retrieval_precision": null,
+        "groundedness_score": 1.0,
+        "context_relevance": 1.0,
+        "citation_coverage": 0.0,
+        "answer_relevance": 1.0,
+        "unsupported_claim_rate": 0.0,
+        "hallucination_rate": 0.0,
+        "cost_per_successful_task": null,
+        "cost_per_attempted_task": null,
+        "latency_p50_ms": 8023.361333000001,
+        "latency_p95_ms": 9758.10803745
+      },
+      "outputs": [
+        "According to the source, the return window is 30 days.",
+        "According to the source, orders ship within 2 business days.",
+        "According to the source, the warranty lasts for 12 months.",
+        "According to the source, support is available from Monday through Friday."
+      ],
+      "regression": false,
+      "regression_warning": null,
+      "cases": [
+        {
+          "test_idx": 0,
+          "input": {
+            "question": "How long is the return window?",
+            "contexts": [
+              {
+                "id": "returns",
+                "text": "Returns are accepted within 30 days."
+              }
+            ],
+            "expected_citations": [
+              "returns"
+            ]
+          },
+          "expected": "Returns are accepted within 30 days.",
+          "output": "According to the source, the return window is 30 days.",
+          "judge_score": 0.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 0.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer directly matches the provided context and expected citation, hence it is faithful, relevant to the question, complete, cited appropriately, safe, and reasoned.",
+          "metrics": {
+            "judge_score": 0.0,
+            "prompt_tokens": 52,
+            "completion_tokens": 14,
+            "total_tokens": 66,
+            "latency_ms": 6058.464792,
+            "context_window_used": 0.01611328125,
+            "token_penalty": 0.01611328125,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": false,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 0.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": -0.610680463575,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": [
+              "missing_citation"
+            ]
+          },
+          "passed": 0,
+          "failure_labels": [
+            "missing_citation"
+          ]
+        },
+        {
+          "test_idx": 1,
+          "input": {
+            "question": "When do orders ship?",
+            "contexts": [
+              {
+                "id": "shipping",
+                "text": "Orders ship within 2 business days."
+              }
+            ],
+            "expected_citations": [
+              "shipping"
+            ]
+          },
+          "expected": "Orders ship within 2 business days.",
+          "output": "According to the source, orders ship within 2 business days.",
+          "judge_score": 0.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 0.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer is a direct quote from the provided context, which matches exactly with the expected response. There are no contradictions or unsupported additions, and it covers all aspects of the question as requested.",
+          "metrics": {
+            "judge_score": 0.0,
+            "prompt_tokens": 50,
+            "completion_tokens": 14,
+            "total_tokens": 64,
+            "latency_ms": 8692.899583,
+            "context_window_used": 0.015625,
+            "token_penalty": 0.015625,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": false,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 0.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": -0.8739774583000001,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": [
+              "missing_citation"
+            ]
+          },
+          "passed": 0,
+          "failure_labels": [
+            "missing_citation"
+          ]
+        },
+        {
+          "test_idx": 2,
+          "input": {
+            "question": "How long is the warranty?",
+            "contexts": [
+              {
+                "id": "warranty",
+                "text": "The warranty lasts 12 months."
+              }
+            ],
+            "expected_citations": [
+              "warranty"
+            ]
+          },
+          "expected": "The warranty lasts 12 months.",
+          "output": "According to the source, the warranty lasts for 12 months.",
+          "judge_score": 0.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 0.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer is a direct quote from the provided context, which matches the expected answer exactly. The reasoning behind this score is that the response accurately reflects the information given in the source without any additions or contradictions.",
+          "metrics": {
+            "judge_score": 0.0,
+            "prompt_tokens": 51,
+            "completion_tokens": 14,
+            "total_tokens": 65,
+            "latency_ms": 9946.086,
+            "context_window_used": 0.015869140625,
+            "token_penalty": 0.015869140625,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": false,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 0.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": -0.9993693421875,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": [
+              "missing_citation"
+            ]
+          },
+          "passed": 0,
+          "failure_labels": [
+            "missing_citation"
+          ]
+        },
+        {
+          "test_idx": 3,
+          "input": {
+            "question": "When is support available?",
+            "contexts": [
+              {
+                "id": "support",
+                "text": "Support is available Monday through Friday."
+              }
+            ],
+            "expected_citations": [
+              "support"
+            ]
+          },
+          "expected": "Support is available Monday through Friday.",
+          "output": "According to the source, support is available from Monday through Friday.",
+          "judge_score": 0.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 0.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer is a direct quote from the provided context, which matches exactly with the expected answer. The reasoning behind this score is that the response faithfully represents the information given in the source without any additions or contradictions.",
+          "metrics": {
+            "judge_score": 0.0,
+            "prompt_tokens": 49,
+            "completion_tokens": 14,
+            "total_tokens": 63,
+            "latency_ms": 7353.823083,
+            "context_window_used": 0.015380859375,
+            "token_penalty": 0.015380859375,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": false,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 0.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": -0.7399965661125001,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": [
+              "missing_citation"
+            ]
+          },
+          "passed": 0,
+          "failure_labels": [
+            "missing_citation"
+          ]
+        }
+      ]
+    },
+    {
+      "variant": "optimized",
+      "repeat": 1,
+      "run_id": 2,
+      "avg_judge_score": 1.0,
+      "avg_objective": 0.31572815405312493,
+      "pass_rate": 1.0,
+      "aggregate_metrics": {
+        "task_success_rate": 1.0,
+        "tool_call_accuracy": null,
+        "retrieval_precision": null,
+        "groundedness_score": 1.0,
+        "context_relevance": 1.0,
+        "citation_coverage": 1.0,
+        "answer_relevance": 1.0,
+        "unsupported_claim_rate": 0.0,
+        "hallucination_rate": 0.0,
+        "cost_per_successful_task": null,
+        "cost_per_attempted_task": null,
+        "latency_p50_ms": 6803.054604,
+        "latency_p95_ms": 7970.5799482
+      },
+      "outputs": [
+        "30 days [returns]",
+        "Within 2 business days. [shipping]",
+        "12 months [warranty]",
+        "Monday through Friday. [support]"
+      ],
+      "regression": false,
+      "regression_warning": null,
+      "cases": [
+        {
+          "test_idx": 0,
+          "input": {
+            "question": "How long is the return window?",
+            "contexts": [
+              {
+                "id": "returns",
+                "text": "Returns are accepted within 30 days."
+              }
+            ],
+            "expected_citations": [
+              "returns"
+            ]
+          },
+          "expected": "Returns are accepted within 30 days.",
+          "output": "30 days [returns]",
+          "judge_score": 1.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 1.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer '30 days [returns]' directly matches the expected answer 'Returns are accepted within 30 days.' and is supported by the provided citation 'returns'. The context relevance, completeness, faithfulness, safety, and citation coverage are all perfect as per the given data.",
+          "metrics": {
+            "judge_score": 1.0,
+            "prompt_tokens": 128,
+            "completion_tokens": 6,
+            "total_tokens": 134,
+            "latency_ms": 7207.947375,
+            "context_window_used": 0.03271484375,
+            "token_penalty": 0.03271484375,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": true,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 1.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": 0.26939080937499993,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": []
+          },
+          "passed": 1,
+          "failure_labels": []
+        },
+        {
+          "test_idx": 1,
+          "input": {
+            "question": "When do orders ship?",
+            "contexts": [
+              {
+                "id": "shipping",
+                "text": "Orders ship within 2 business days."
+              }
+            ],
+            "expected_citations": [
+              "shipping"
+            ]
+          },
+          "expected": "Orders ship within 2 business days.",
+          "output": "Within 2 business days. [shipping]",
+          "judge_score": 1.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 1.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer 'Within 2 business days. [venting]' is a direct and accurate paraphrase of the provided context 'Orders ship within 2 business days.' There are no contradictions, negations, or unsupported additions in the response. The citation '[venting]' directly supports the specific attached claim.",
+          "metrics": {
+            "judge_score": 1.0,
+            "prompt_tokens": 126,
+            "completion_tokens": 10,
+            "total_tokens": 136,
+            "latency_ms": 6398.161833,
+            "context_window_used": 0.033203125,
+            "token_penalty": 0.033203125,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": true,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 1.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": 0.35022287920000006,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": []
+          },
+          "passed": 1,
+          "failure_labels": []
+        },
+        {
+          "test_idx": 2,
+          "input": {
+            "question": "How long is the warranty?",
+            "contexts": [
+              {
+                "id": "warranty",
+                "text": "The warranty lasts 12 months."
+              }
+            ],
+            "expected_citations": [
+              "warranty"
+            ]
+          },
+          "expected": "The warranty lasts 12 months.",
+          "output": "12 months [warranty]",
+          "judge_score": 1.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 1.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer '12 months [warranty]' is a direct match to the expected answer 'The warranty lasts 12 months.' and includes the specific citation provided in the expected citations. The context relevance, faithfulness, completeness, safety, and answer relevance are all at their maximum value of 1.",
+          "metrics": {
+            "judge_score": 1.0,
+            "prompt_tokens": 127,
+            "completion_tokens": 7,
+            "total_tokens": 134,
+            "latency_ms": 8105.162167,
+            "context_window_used": 0.03271484375,
+            "token_penalty": 0.03271484375,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": true,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 1.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": 0.17966933017499986,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": []
+          },
+          "passed": 1,
+          "failure_labels": []
+        },
+        {
+          "test_idx": 3,
+          "input": {
+            "question": "When is support available?",
+            "contexts": [
+              {
+                "id": "support",
+                "text": "Support is available Monday through Friday."
+              }
+            ],
+            "expected_citations": [
+              "support"
+            ]
+          },
+          "expected": "Support is available Monday through Friday.",
+          "output": "Monday through Friday. [support]",
+          "judge_score": 1.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 1.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer 'Monday through Friday. [support]' is a direct and accurate paraphrase of the expected answer 'Support is available Monday through Friday.' with proper citation, thus meeting all criteria for faithfulness, context relevance, answer relevance, completeness, citation coverage, safety, and reasoning.",
+          "metrics": {
+            "judge_score": 1.0,
+            "prompt_tokens": 125,
+            "completion_tokens": 8,
+            "total_tokens": 133,
+            "latency_ms": 5266.291916,
+            "context_window_used": 0.032470703125,
+            "token_penalty": 0.032470703125,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": true,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 1.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": 0.4636295974625,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": []
+          },
+          "passed": 1,
+          "failure_labels": []
+        }
+      ]
+    },
+    {
+      "variant": "optimized",
+      "repeat": 2,
+      "run_id": 3,
+      "avg_judge_score": 1.0,
+      "avg_objective": 0.19492689465312496,
+      "pass_rate": 1.0,
+      "aggregate_metrics": {
+        "task_success_rate": 1.0,
+        "tool_call_accuracy": null,
+        "retrieval_precision": null,
+        "groundedness_score": 1.0,
+        "context_relevance": 1.0,
+        "citation_coverage": 1.0,
+        "answer_relevance": 1.0,
+        "unsupported_claim_rate": 0.0,
+        "hallucination_rate": 0.0,
+        "cost_per_successful_task": null,
+        "cost_per_attempted_task": null,
+        "latency_p50_ms": 7888.43225,
+        "latency_p95_ms": 9415.8882794
+      },
+      "outputs": [
+        "30 days [returns]",
+        "Within 2 business days. [shipping]",
+        "12 months [warranty]",
+        "Monday through Friday. [support]"
+      ],
+      "regression": true,
+      "regression_warning": "Regression detected: objective 0.1949 < previous best 0.3157",
+      "cases": [
+        {
+          "test_idx": 0,
+          "input": {
+            "question": "How long is the return window?",
+            "contexts": [
+              {
+                "id": "returns",
+                "text": "Returns are accepted within 30 days."
+              }
+            ],
+            "expected_citations": [
+              "returns"
+            ]
+          },
+          "expected": "Returns are accepted within 30 days.",
+          "output": "30 days [returns]",
+          "judge_score": 1.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 1.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer '30 days [returns]' directly matches the expected answer 'Returns are accepted within 30 days.' and is supported by the provided citation 'returns'. The context relevance, completeness, faithfulness, safety, and citation coverage are all perfect as per the given data.",
+          "metrics": {
+            "judge_score": 1.0,
+            "prompt_tokens": 128,
+            "completion_tokens": 6,
+            "total_tokens": 134,
+            "latency_ms": 7374.860542,
+            "context_window_used": 0.03271484375,
+            "token_penalty": 0.03271484375,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": true,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 1.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": 0.2526994926749999,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": []
+          },
+          "passed": 1,
+          "failure_labels": []
+        },
+        {
+          "test_idx": 1,
+          "input": {
+            "question": "When do orders ship?",
+            "contexts": [
+              {
+                "id": "shipping",
+                "text": "Orders ship within 2 business days."
+              }
+            ],
+            "expected_citations": [
+              "shipping"
+            ]
+          },
+          "expected": "Orders ship within 2 business days.",
+          "output": "Within 2 business days. [shipping]",
+          "judge_score": 1.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 1.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer 'Within 2 business days. [venting]' is a direct and accurate paraphrase of the provided context 'Orders ship within 2 business days.' There are no contradictions, negations, or unsupported additions in the response. The citation '[venting]' directly supports the specific attached claim.",
+          "metrics": {
+            "judge_score": 1.0,
+            "prompt_tokens": 126,
+            "completion_tokens": 10,
+            "total_tokens": 136,
+            "latency_ms": 9594.809042,
+            "context_window_used": 0.033203125,
+            "token_penalty": 0.033203125,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": true,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 1.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": 0.03055815829999997,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": []
+          },
+          "passed": 1,
+          "failure_labels": []
+        },
+        {
+          "test_idx": 2,
+          "input": {
+            "question": "How long is the warranty?",
+            "contexts": [
+              {
+                "id": "warranty",
+                "text": "The warranty lasts 12 months."
+              }
+            ],
+            "expected_citations": [
+              "warranty"
+            ]
+          },
+          "expected": "The warranty lasts 12 months.",
+          "output": "12 months [warranty]",
+          "judge_score": 1.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 1.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer '12 months [warranty]' is a direct match to the expected answer 'The warranty lasts 12 months.' and includes the specific citation provided in the expected citations. The context relevance, faithfulness, completeness, safety, and answer relevance are all at their maximum value of 1.",
+          "metrics": {
+            "judge_score": 1.0,
+            "prompt_tokens": 127,
+            "completion_tokens": 7,
+            "total_tokens": 134,
+            "latency_ms": 8402.003958,
+            "context_window_used": 0.03271484375,
+            "token_penalty": 0.03271484375,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": true,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 1.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": 0.149985151075,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": []
+          },
+          "passed": 1,
+          "failure_labels": []
+        },
+        {
+          "test_idx": 3,
+          "input": {
+            "question": "When is support available?",
+            "contexts": [
+              {
+                "id": "support",
+                "text": "Support is available Monday through Friday."
+              }
+            ],
+            "expected_citations": [
+              "support"
+            ]
+          },
+          "expected": "Support is available Monday through Friday.",
+          "output": "Monday through Friday. [support]",
+          "judge_score": 1.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 1.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer 'Monday through Friday. [support]' is a direct and accurate paraphrase of the expected answer 'Support is available Monday through Friday.' with proper citation, thus meeting all criteria for faithfulness, context relevance, answer relevance, completeness, citation coverage, safety, and reasoning.",
+          "metrics": {
+            "judge_score": 1.0,
+            "prompt_tokens": 125,
+            "completion_tokens": 8,
+            "total_tokens": 133,
+            "latency_ms": 6437.940125,
+            "context_window_used": 0.032470703125,
+            "token_penalty": 0.032470703125,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": true,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 1.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": 0.34646477656249997,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": []
+          },
+          "passed": 1,
+          "failure_labels": []
+        }
+      ]
+    },
+    {
+      "variant": "baseline",
+      "repeat": 2,
+      "run_id": 4,
+      "avg_judge_score": 0.0,
+      "avg_objective": -0.72252797524375,
+      "pass_rate": 0.0,
+      "aggregate_metrics": {
+        "task_success_rate": 0.0,
+        "tool_call_accuracy": null,
+        "retrieval_precision": null,
+        "groundedness_score": 1.0,
+        "context_relevance": 1.0,
+        "citation_coverage": 0.0,
+        "answer_relevance": 1.0,
+        "unsupported_claim_rate": 0.0,
+        "hallucination_rate": 0.0,
+        "cost_per_successful_task": null,
+        "cost_per_attempted_task": null,
+        "latency_p50_ms": 7168.153125000001,
+        "latency_p95_ms": 8707.31082055
+      },
+      "outputs": [
+        "According to the source, the return window is 30 days.",
+        "According to the source, orders ship within 2 business days.",
+        "According to the source, the warranty lasts for 12 months.",
+        "According to the source, support is available from Monday through Friday."
+      ],
+      "regression": false,
+      "regression_warning": null,
+      "cases": [
+        {
+          "test_idx": 0,
+          "input": {
+            "question": "How long is the return window?",
+            "contexts": [
+              {
+                "id": "returns",
+                "text": "Returns are accepted within 30 days."
+              }
+            ],
+            "expected_citations": [
+              "returns"
+            ]
+          },
+          "expected": "Returns are accepted within 30 days.",
+          "output": "According to the source, the return window is 30 days.",
+          "judge_score": 0.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 0.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer directly matches the provided context and expected citation, hence it is faithful, relevant to the question, complete, cited appropriately, safe, and reasoned.",
+          "metrics": {
+            "judge_score": 0.0,
+            "prompt_tokens": 52,
+            "completion_tokens": 14,
+            "total_tokens": 66,
+            "latency_ms": 6591.937125,
+            "context_window_used": 0.01611328125,
+            "token_penalty": 0.01611328125,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": false,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 0.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": -0.6640276968750001,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": [
+              "missing_citation"
+            ]
+          },
+          "passed": 0,
+          "failure_labels": [
+            "missing_citation"
+          ]
+        },
+        {
+          "test_idx": 1,
+          "input": {
+            "question": "When do orders ship?",
+            "contexts": [
+              {
+                "id": "shipping",
+                "text": "Orders ship within 2 business days."
+              }
+            ],
+            "expected_citations": [
+              "shipping"
+            ]
+          },
+          "expected": "Orders ship within 2 business days.",
+          "output": "According to the source, orders ship within 2 business days.",
+          "judge_score": 0.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 0.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer is a direct quote from the provided context, which matches exactly with the expected response. There are no contradictions or unsupported additions, and it covers all aspects of the question as requested.",
+          "metrics": {
+            "judge_score": 0.0,
+            "prompt_tokens": 50,
+            "completion_tokens": 14,
+            "total_tokens": 64,
+            "latency_ms": 8877.241708,
+            "context_window_used": 0.015625,
+            "token_penalty": 0.015625,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": false,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 0.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": -0.8924116708,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": [
+              "missing_citation"
+            ]
+          },
+          "passed": 0,
+          "failure_labels": [
+            "missing_citation"
+          ]
+        },
+        {
+          "test_idx": 2,
+          "input": {
+            "question": "How long is the warranty?",
+            "contexts": [
+              {
+                "id": "warranty",
+                "text": "The warranty lasts 12 months."
+              }
+            ],
+            "expected_citations": [
+              "warranty"
+            ]
+          },
+          "expected": "The warranty lasts 12 months.",
+          "output": "According to the source, the warranty lasts for 12 months.",
+          "judge_score": 0.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 0.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer is a direct quote from the provided context, which matches the expected answer exactly. The reasoning behind this score is that the response accurately reflects the information given in the source without any additions or contradictions.",
+          "metrics": {
+            "judge_score": 0.0,
+            "prompt_tokens": 51,
+            "completion_tokens": 14,
+            "total_tokens": 65,
+            "latency_ms": 5498.606208,
+            "context_window_used": 0.015869140625,
+            "token_penalty": 0.015869140625,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": false,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 0.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": -0.5546213629875001,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": [
+              "missing_citation"
+            ]
+          },
+          "passed": 0,
+          "failure_labels": [
+            "missing_citation"
+          ]
+        },
+        {
+          "test_idx": 3,
+          "input": {
+            "question": "When is support available?",
+            "contexts": [
+              {
+                "id": "support",
+                "text": "Support is available Monday through Friday."
+              }
+            ],
+            "expected_citations": [
+              "support"
+            ]
+          },
+          "expected": "Support is available Monday through Friday.",
+          "output": "According to the source, support is available from Monday through Friday.",
+          "judge_score": 0.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 0.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer is a direct quote from the provided context, which matches exactly with the expected answer. The reasoning behind this score is that the response faithfully represents the information given in the source without any additions or contradictions.",
+          "metrics": {
+            "judge_score": 0.0,
+            "prompt_tokens": 49,
+            "completion_tokens": 14,
+            "total_tokens": 63,
+            "latency_ms": 7744.369125,
+            "context_window_used": 0.015380859375,
+            "token_penalty": 0.015380859375,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": false,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 0.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": -0.7790511703125,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": [
+              "missing_citation"
+            ]
+          },
+          "passed": 0,
+          "failure_labels": [
+            "missing_citation"
+          ]
+        }
+      ]
+    },
+    {
+      "variant": "baseline",
+      "repeat": 3,
+      "run_id": 5,
+      "avg_judge_score": 0.0,
+      "avg_objective": -0.70578271381875,
+      "pass_rate": 0.0,
+      "aggregate_metrics": {
+        "task_success_rate": 0.0,
+        "tool_call_accuracy": null,
+        "retrieval_precision": null,
+        "groundedness_score": 1.0,
+        "context_relevance": 1.0,
+        "citation_coverage": 0.0,
+        "answer_relevance": 1.0,
+        "unsupported_claim_rate": 0.0,
+        "hallucination_rate": 0.0,
+        "cost_per_successful_task": null,
+        "cost_per_attempted_task": null,
+        "latency_p50_ms": 6960.0106670000005,
+        "latency_p95_ms": 8735.059033999998
+      },
+      "outputs": [
+        "According to the source, the return window is 30 days.",
+        "According to the source, orders ship within 2 business days.",
+        "According to the source, the warranty lasts for 12 months.",
+        "According to the source, support is available from Monday through Friday."
+      ],
+      "regression": false,
+      "regression_warning": null,
+      "cases": [
+        {
+          "test_idx": 0,
+          "input": {
+            "question": "How long is the return window?",
+            "contexts": [
+              {
+                "id": "returns",
+                "text": "Returns are accepted within 30 days."
+              }
+            ],
+            "expected_citations": [
+              "returns"
+            ]
+          },
+          "expected": "Returns are accepted within 30 days.",
+          "output": "According to the source, the return window is 30 days.",
+          "judge_score": 0.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 0.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer directly matches the provided context and expected citation, hence it is faithful, relevant to the question, complete, cited appropriately, safe, and reasoned.",
+          "metrics": {
+            "judge_score": 0.0,
+            "prompt_tokens": 52,
+            "completion_tokens": 14,
+            "total_tokens": 66,
+            "latency_ms": 7581.845334,
+            "context_window_used": 0.01611328125,
+            "token_penalty": 0.01611328125,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": false,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 0.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": -0.7630185177750001,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": [
+              "missing_citation"
+            ]
+          },
+          "passed": 0,
+          "failure_labels": [
+            "missing_citation"
+          ]
+        },
+        {
+          "test_idx": 1,
+          "input": {
+            "question": "When do orders ship?",
+            "contexts": [
+              {
+                "id": "shipping",
+                "text": "Orders ship within 2 business days."
+              }
+            ],
+            "expected_citations": [
+              "shipping"
+            ]
+          },
+          "expected": "Orders ship within 2 business days.",
+          "output": "According to the source, orders ship within 2 business days.",
+          "judge_score": 0.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 0.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer is a direct quote from the provided context, which matches exactly with the expected response. There are no contradictions or unsupported additions, and it covers all aspects of the question as requested.",
+          "metrics": {
+            "judge_score": 0.0,
+            "prompt_tokens": 50,
+            "completion_tokens": 14,
+            "total_tokens": 64,
+            "latency_ms": 5183.755041,
+            "context_window_used": 0.015625,
+            "token_penalty": 0.015625,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": false,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 0.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": -0.5230630041000001,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": [
+              "missing_citation"
+            ]
+          },
+          "passed": 0,
+          "failure_labels": [
+            "missing_citation"
+          ]
+        },
+        {
+          "test_idx": 2,
+          "input": {
+            "question": "How long is the warranty?",
+            "contexts": [
+              {
+                "id": "warranty",
+                "text": "The warranty lasts 12 months."
+              }
+            ],
+            "expected_citations": [
+              "warranty"
+            ]
+          },
+          "expected": "The warranty lasts 12 months.",
+          "output": "According to the source, the warranty lasts for 12 months.",
+          "judge_score": 0.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 0.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer is a direct quote from the provided context, which matches the expected answer exactly. The reasoning behind this score is that the response accurately reflects the information given in the source without any additions or contradictions.",
+          "metrics": {
+            "judge_score": 0.0,
+            "prompt_tokens": 51,
+            "completion_tokens": 14,
+            "total_tokens": 65,
+            "latency_ms": 8938.567334,
+            "context_window_used": 0.015869140625,
+            "token_penalty": 0.015869140625,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": false,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 0.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": -0.8986174755874999,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": [
+              "missing_citation"
+            ]
+          },
+          "passed": 0,
+          "failure_labels": [
+            "missing_citation"
+          ]
+        },
+        {
+          "test_idx": 3,
+          "input": {
+            "question": "When is support available?",
+            "contexts": [
+              {
+                "id": "support",
+                "text": "Support is available Monday through Friday."
+              }
+            ],
+            "expected_citations": [
+              "support"
+            ]
+          },
+          "expected": "Support is available Monday through Friday.",
+          "output": "According to the source, support is available from Monday through Friday.",
+          "judge_score": 0.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 0.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer is a direct quote from the provided context, which matches exactly with the expected answer. The reasoning behind this score is that the response faithfully represents the information given in the source without any additions or contradictions.",
+          "metrics": {
+            "judge_score": 0.0,
+            "prompt_tokens": 49,
+            "completion_tokens": 14,
+            "total_tokens": 63,
+            "latency_ms": 6338.176,
+            "context_window_used": 0.015380859375,
+            "token_penalty": 0.015380859375,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": false,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 0.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": -0.6384318578125001,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": [
+              "missing_citation"
+            ]
+          },
+          "passed": 0,
+          "failure_labels": [
+            "missing_citation"
+          ]
+        }
+      ]
+    },
+    {
+      "variant": "optimized",
+      "repeat": 3,
+      "run_id": 6,
+      "avg_judge_score": 1.0,
+      "avg_objective": 0.30103269260312493,
+      "pass_rate": 1.0,
+      "aggregate_metrics": {
+        "task_success_rate": 1.0,
+        "tool_call_accuracy": null,
+        "retrieval_precision": null,
+        "groundedness_score": 1.0,
+        "context_relevance": 1.0,
+        "citation_coverage": 1.0,
+        "answer_relevance": 1.0,
+        "unsupported_claim_rate": 0.0,
+        "hallucination_rate": 0.0,
+        "cost_per_successful_task": null,
+        "cost_per_attempted_task": null,
+        "latency_p50_ms": 6911.4884165,
+        "latency_p95_ms": 8184.077245549999
+      },
+      "outputs": [
+        "30 days [returns]",
+        "Within 2 business days. [shipping]",
+        "12 months [warranty]",
+        "Monday through Friday. [support]"
+      ],
+      "regression": true,
+      "regression_warning": "Regression detected: objective 0.3010 < previous best 0.3157",
+      "cases": [
+        {
+          "test_idx": 0,
+          "input": {
+            "question": "How long is the return window?",
+            "contexts": [
+              {
+                "id": "returns",
+                "text": "Returns are accepted within 30 days."
+              }
+            ],
+            "expected_citations": [
+              "returns"
+            ]
+          },
+          "expected": "Returns are accepted within 30 days.",
+          "output": "30 days [returns]",
+          "judge_score": 1.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 1.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer '30 days [returns]' directly matches the expected answer 'Returns are accepted within 30 days.' and is supported by the provided citation 'returns'. The context relevance, completeness, faithfulness, safety, and citation coverage are all perfect as per the given data.",
+          "metrics": {
+            "judge_score": 1.0,
+            "prompt_tokens": 128,
+            "completion_tokens": 6,
+            "total_tokens": 134,
+            "latency_ms": 6444.479083,
+            "context_window_used": 0.03271484375,
+            "token_penalty": 0.03271484375,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": true,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 1.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": 0.34573763857499984,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": []
+          },
+          "passed": 1,
+          "failure_labels": []
+        },
+        {
+          "test_idx": 1,
+          "input": {
+            "question": "When do orders ship?",
+            "contexts": [
+              {
+                "id": "shipping",
+                "text": "Orders ship within 2 business days."
+              }
+            ],
+            "expected_citations": [
+              "shipping"
+            ]
+          },
+          "expected": "Orders ship within 2 business days.",
+          "output": "Within 2 business days. [shipping]",
+          "judge_score": 1.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 1.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer 'Within 2 business days. [venting]' is a direct and accurate paraphrase of the provided context 'Orders ship within 2 business days.' There are no contradictions, negations, or unsupported additions in the response. The citation '[venting]' directly supports the specific attached claim.",
+          "metrics": {
+            "judge_score": 1.0,
+            "prompt_tokens": 126,
+            "completion_tokens": 10,
+            "total_tokens": 136,
+            "latency_ms": 5416.166583,
+            "context_window_used": 0.033203125,
+            "token_penalty": 0.033203125,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": true,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 1.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": 0.4484224042,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": []
+          },
+          "passed": 1,
+          "failure_labels": []
+        },
+        {
+          "test_idx": 2,
+          "input": {
+            "question": "How long is the warranty?",
+            "contexts": [
+              {
+                "id": "warranty",
+                "text": "The warranty lasts 12 months."
+              }
+            ],
+            "expected_citations": [
+              "warranty"
+            ]
+          },
+          "expected": "The warranty lasts 12 months.",
+          "output": "12 months [warranty]",
+          "judge_score": 1.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 1.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer '12 months [warranty]' is a direct match to the expected answer 'The warranty lasts 12 months.' and includes the specific citation provided in the expected citations. The context relevance, faithfulness, completeness, safety, and answer relevance are all at their maximum value of 1.",
+          "metrics": {
+            "judge_score": 1.0,
+            "prompt_tokens": 127,
+            "completion_tokens": 7,
+            "total_tokens": 134,
+            "latency_ms": 7378.49775,
+            "context_window_used": 0.03271484375,
+            "token_penalty": 0.03271484375,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": true,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 1.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": 0.2523357718749999,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": []
+          },
+          "passed": 1,
+          "failure_labels": []
+        },
+        {
+          "test_idx": 3,
+          "input": {
+            "question": "When is support available?",
+            "contexts": [
+              {
+                "id": "support",
+                "text": "Support is available Monday through Friday."
+              }
+            ],
+            "expected_citations": [
+              "support"
+            ]
+          },
+          "expected": "Support is available Monday through Friday.",
+          "output": "Monday through Friday. [support]",
+          "judge_score": 1.0,
+          "judge_criteria": {
+            "faithfulness": 1.0,
+            "context_relevance": 1.0,
+            "answer_relevance": 1.0,
+            "completeness": 1.0,
+            "citation_coverage": 1.0,
+            "safety": 1.0,
+            "groundedness": 1.0,
+            "unsupported_claim_rate": 0.0
+          },
+          "judge_reasoning": "The answer 'Monday through Friday. [support]' is a direct and accurate paraphrase of the expected answer 'Support is available Monday through Friday.' with proper citation, thus meeting all criteria for faithfulness, context relevance, answer relevance, completeness, citation coverage, safety, and reasoning.",
+          "metrics": {
+            "judge_score": 1.0,
+            "prompt_tokens": 125,
+            "completion_tokens": 8,
+            "total_tokens": 133,
+            "latency_ms": 8326.238333,
+            "context_window_used": 0.032470703125,
+            "token_penalty": 0.032470703125,
+            "format_valid": null,
+            "format_penalty": 0.0,
+            "cost_usd": null,
+            "task_success": true,
+            "tool_call_accuracy": null,
+            "retrieval_precision": null,
+            "groundedness_score": 1.0,
+            "context_relevance": 1.0,
+            "citation_coverage": 1.0,
+            "answer_relevance": 1.0,
+            "unsupported_claim_rate": 0.0,
+            "hallucination_rate": 0.0,
+            "objective": 0.15763495576249997,
+            "trace": {
+              "tool_calls": [],
+              "retrieved_docs": [],
+              "citations": [],
+              "cost_usd": null,
+              "cost_source": null
+            },
+            "failure_labels": []
+          },
+          "passed": 1,
+          "failure_labels": []
+        }
+      ]
+    }
+  ],
+  "method": "Alternating variant order; warmed models; generation-only provider latency and token usage. Semantic judge via separate model. No price rates assumed.",
+  "ollama_version": "0.30.10"
+}

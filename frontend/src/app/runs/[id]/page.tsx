@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { use } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 const MLFLOW_URL = process.env.NEXT_PUBLIC_MLFLOW_URL || "http://localhost:5000";
@@ -17,10 +16,11 @@ type RunResult = {
   judge_reasoning?: string;
   metrics?: Record<string, any>;
   passed?: number;
+  failure_labels?: string[];
 };
 
-export default function RunDetail({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function RunDetail({ params }: { params: { id: string } }) {
+  const { id } = params;
   const [run, setRun] = useState<any>(null);
   const [results, setResults] = useState<RunResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,6 +85,19 @@ export default function RunDetail({ params }: { params: Promise<{ id: string }> 
             Back
           </a>
         </div>
+
+        {run.gate_status && (
+          <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${run.gate_status === "passed" ? "border-emerald-500/40 text-emerald-300" : "border-red-500/40 text-red-300"}`}>
+            Quality gate: {run.gate_status}
+          </div>
+        )}
+
+        {run.aggregate_metrics && (
+          <details className="mt-4 rounded-xl border border-border p-4">
+            <summary className="cursor-pointer text-sm">Evaluation metrics</summary>
+            <pre className="mt-3 whitespace-pre-wrap text-xs">{JSON.stringify(run.aggregate_metrics, null, 2)}</pre>
+          </details>
+        )}
 
         {run.regression === 1 && (
           <div className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
@@ -177,6 +190,16 @@ export default function RunDetail({ params }: { params: Promise<{ id: string }> 
                     </span>
                   </button>
 
+                  {(r.failure_labels || []).length > 0 && (
+                    <div className="px-4 pb-3 flex flex-wrap gap-2">
+                      {r.failure_labels!.map((label) => (
+                        <span key={label} className="text-xs rounded border border-red-500/30 px-2 py-1 text-red-300">
+                          {label.replace(/_/g, " ")}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
                   {expanded.has(r.test_idx) && (
                     <div className="border-t border-border p-4 space-y-4 text-sm">
                       <div>
@@ -225,7 +248,7 @@ export default function RunDetail({ params }: { params: Promise<{ id: string }> 
                           <div className="text-xs uppercase tracking-widest text-muted">Metrics</div>
                           <div className="mt-1 flex flex-wrap gap-2">
                             {Object.entries(r.metrics)
-                              .filter(([, v]) => v !== null && v !== undefined)
+                              .filter(([k, v]) => k !== "trace" && k !== "failure_labels" && v !== null && v !== undefined)
                               .map(([k, v]) => (
                                 <span
                                   key={k}
@@ -235,6 +258,12 @@ export default function RunDetail({ params }: { params: Promise<{ id: string }> 
                                 </span>
                               ))}
                           </div>
+                          {r.metrics.trace && (
+                            <details className="mt-3">
+                              <summary className="cursor-pointer text-xs text-muted">Provider trace</summary>
+                              <pre className="mt-2 whitespace-pre-wrap text-xs bg-black/30 rounded-lg p-3">{JSON.stringify(r.metrics.trace, null, 2)}</pre>
+                            </details>
+                          )}
                         </div>
                       )}
                     </div>

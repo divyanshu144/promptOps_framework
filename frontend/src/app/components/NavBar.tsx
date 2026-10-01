@@ -49,7 +49,7 @@ export default function NavBar() {
         </div>
 
         <span className="hidden md:block text-[11px] font-mono text-muted/40 tracking-wider">
-          prompt-as-code
+          LLM evals
         </span>
       </div>
     </nav>

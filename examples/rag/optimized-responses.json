@@ -1,0 +1,38 @@
+{
+  "Use only these sources: [{'id': 'returns', 'text': 'Returns are accepted within 30 days.'}]\nQuestion: How long is the return window?\nAnswer with [source_id] citations.": {
+    "output": "Returns are accepted within 30 days. [returns]",
+    "prompt_tokens": 110,
+    "completion_tokens": 20,
+    "latency_ms": 450,
+    "raw": {
+      "cost_usd": 0.0002
+    }
+  },
+  "Use only these sources: [{'id': 'shipping', 'text': 'Orders ship within 2 business days.'}]\nQuestion: When do orders ship?\nAnswer with [source_id] citations.": {
+    "output": "Orders ship within 2 business days. [shipping]",
+    "prompt_tokens": 110,
+    "completion_tokens": 20,
+    "latency_ms": 450,
+    "raw": {
+      "cost_usd": 0.0002
+    }
+  },
+  "Use only these sources: [{'id': 'warranty', 'text': 'The warranty lasts 12 months.'}]\nQuestion: How long is the warranty?\nAnswer with [source_id] citations.": {
+    "output": "The warranty lasts 12 months. [warranty]",
+    "prompt_tokens": 110,
+    "completion_tokens": 20,
+    "latency_ms": 450,
+    "raw": {
+      "cost_usd": 0.0002
+    }
+  },
+  "Use only these sources: [{'id': 'support', 'text': 'Support is available Monday through Friday.'}]\nQuestion: When is support available?\nAnswer with [source_id] citations.": {
+    "output": "Support is available Monday through Friday. [support]",
+    "prompt_tokens": 110,
+    "completion_tokens": 20,
+    "latency_ms": 450,
+    "raw": {
+      "cost_usd": 0.0002
+    }
+  }
+}

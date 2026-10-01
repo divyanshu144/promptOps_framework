@@ -7,6 +7,18 @@ from typing import Iterable
 from promptops.core.prompt import Prompt
 from promptops.tests.testcase import TestCase
 
+# Suffixes of variants that differ from their base only in generation params
+# (e.g. max_tokens), not in prompt content (system/template/output_format/output_schema).
+# Kept in sync with basic_mutations() below — currently only the "lower max_tokens" variant.
+PARAM_ONLY_VARIANT_SUFFIXES = ("_lowtokens",)
+
+
+def is_param_only_variant(prompt: Prompt) -> bool:
+    """True if this variant's name marks it as a params-only change rather than a prompt
+    content change — relevant when attributing an objective improvement to "the prompt
+    got better" vs "a generation knob changed"."""
+    return prompt.name.endswith(PARAM_ONLY_VARIANT_SUFFIXES)
+
 
 def basic_mutations(
     prompt: Prompt,

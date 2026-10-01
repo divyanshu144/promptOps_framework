@@ -10,6 +10,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
+from dotenv import load_dotenv
+
+# Read local configuration before modules capture database/tracking settings.
+# Explicit environment variables always take precedence.
+load_dotenv(dotenv_path=".env", override=False)
 
 from promptops.core.adapters import make_adapter
 from promptops.core.prompt import Prompt
@@ -32,8 +37,11 @@ from promptops.store.db import (
     remove_suite_case,
     get_prompt_history,
     list_prompt_names,
+    update_run_gate,
 )
 from promptops.eval.deepeval_harness import DeepEvalHarness
+from promptops.eval.rag_harness import RAGHarness, SemanticRAGHarness
+from promptops.eval.release import ReleaseGateThresholds, evaluate_release_gate
 
 
 @asynccontextmanager
@@ -69,14 +77,20 @@ class PromptPayload(BaseModel):
 class RunRequest(BaseModel):
     prompt: PromptPayload
     judge_model: str = "llama3.1"
+    judge_provider: str | None = None
     suite_id: int | None = None
     eval_harness: str | None = None
+    release_label: str | None = None
+    gate: bool = False
+    gate_thresholds: ReleaseGateThresholds | None = None
+    baseline_run_id: int | None = None
 
 
 class PreviewRequest(BaseModel):
     prompt: PromptPayload | None = None
     prompts: list[PromptPayload] | None = None
     judge_model: str = "llama3.1"
+    judge_provider: str | None = None
     inputs: list[str] | None = None
     rubric: dict[str, Any] | None = None
 
@@ -96,14 +110,22 @@ class PreviewRequest(BaseModel):
 class OptimizeRequest(BaseModel):
     prompt: PromptPayload
     judge_model: str = "llama3.1"
+    judge_provider: str | None = None
     iterations: int = 2
     use_rewriter: bool = True
     rewriter_model: str | None = None
     suite_id: int | None = None
+    repeats: int = 1
+    significance_z: float = 1.5
 
     @field_validator("iterations")
     @classmethod
     def clamp_iterations(cls, v: int) -> int:
+        return max(1, min(5, v))
+
+    @field_validator("repeats")
+    @classmethod
+    def clamp_repeats(cls, v: int) -> int:
         return max(1, min(5, v))
 
 
@@ -119,6 +141,14 @@ class SuiteCaseRequest(BaseModel):
     rubric: dict[str, Any] | None = None
     threshold: float = 0.7
     order_idx: int = 0
+    expected_tools: list[str] | None = None
+    relevant_doc_ids: list[str] | None = None
+    expected_claims: list[str] | None = None
+
+
+class ReleaseGateRequest(BaseModel):
+    thresholds: ReleaseGateThresholds | None = None
+    baseline_run_id: int | None = None
 
 
 @app.get("/")
@@ -138,10 +168,11 @@ async def health(provider: str = "ollama") -> dict[str, Any]:
 
 @app.post("/run")
 async def run(req: RunRequest) -> dict[str, Any]:
-    if req.eval_harness is not None and req.eval_harness != "deepeval":
-        raise HTTPException(status_code=400, detail=f"Unknown eval_harness: {req.eval_harness!r}. Supported: 'deepeval'")
+    if req.eval_harness is not None and req.eval_harness not in {"deepeval", "rag", "rag-semantic"}:
+        raise HTTPException(status_code=400, detail=f"Unknown eval_harness: {req.eval_harness!r}. Supported: 'deepeval', 'rag', 'rag-semantic'")
 
     adapter = make_adapter(req.prompt.provider)
+    judge_adapter = make_adapter(req.judge_provider) if req.judge_provider else None
     prompt = Prompt(**req.prompt.model_dump())
 
     if req.suite_id is not None:
@@ -154,17 +185,50 @@ async def run(req: RunRequest) -> dict[str, Any]:
                 expected=sc.get("expected"),
                 rubric=sc.get("rubric"),
                 threshold=sc.get("threshold", 0.7),
+                expected_tools=sc.get("expected_tools"),
+                relevant_doc_ids=sc.get("relevant_doc_ids"),
+                expected_claims=sc.get("expected_claims"),
             )
             for sc in suite_cases
         ]
     else:
         testcases = demo_dataset()
 
-    harness = None
-    if req.eval_harness == "deepeval":
-        harness = DeepEvalHarness(adapter=adapter, model=req.judge_model)
+    if req.eval_harness in {"rag", "rag-semantic"}:
+        try:
+            for case in testcases:
+                await RAGHarness().evaluate(case.input, "", case.expected, case.rubric)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
 
-    results = await run_dataset(adapter, prompt, testcases, req.judge_model, harness=harness)
+    harness = RAGHarness() if req.eval_harness == "rag" else None
+    if req.eval_harness == "rag-semantic":
+        harness = SemanticRAGHarness(judge_adapter or adapter, req.judge_model)
+    if req.eval_harness == "deepeval":
+        harness = DeepEvalHarness(adapter=judge_adapter or adapter, model=req.judge_model)
+
+    results = await run_dataset(
+        adapter,
+        prompt,
+        testcases,
+        req.judge_model,
+        harness=harness,
+        suite_id=req.suite_id,
+        eval_harness_name=req.eval_harness or "llm_judge",
+        release_label=req.release_label,
+        judge_adapter=judge_adapter,
+    )
+    if req.gate:
+        baseline = get_run(req.baseline_run_id) if req.baseline_run_id is not None else None
+        if req.baseline_run_id is not None and baseline is None:
+            raise HTTPException(status_code=404, detail="baseline_not_found")
+        gate_result = evaluate_release_gate(
+            results.get("aggregate_metrics"),
+            thresholds=req.gate_thresholds,
+            baseline_metrics=baseline.get("aggregate_metrics") if baseline else None,
+        )
+        update_run_gate(results["run_id"], "passed" if gate_result.passed else "failed")
+        results["release_gate"] = gate_result.model_dump()
     return results
 
 
@@ -178,10 +242,15 @@ async def preview(req: PreviewRequest) -> dict[str, Any]:
     else:
         testcases = demo_dataset()
 
+    judge_adapter = make_adapter(req.judge_provider) if req.judge_provider else None
+
     async def _run_one_prompt(prompt: Prompt) -> dict[str, Any]:
         adapter = make_adapter(prompt.provider)
         results = await asyncio.gather(
-            *[run_prompt_detailed(adapter, prompt, tc, req.judge_model) for tc in testcases]
+            *[
+                run_prompt_detailed(adapter, prompt, tc, req.judge_model, judge_adapter=judge_adapter)
+                for tc in testcases
+            ]
         )
         return {"prompt": prompt.model_dump(), "results": list(results)}
 
@@ -192,6 +261,7 @@ async def preview(req: PreviewRequest) -> dict[str, Any]:
 @app.post("/optimize")
 async def optimize(req: OptimizeRequest) -> dict[str, Any]:
     adapter = make_adapter(req.prompt.provider)
+    judge_adapter = make_adapter(req.judge_provider) if req.judge_provider else None
     prompt = Prompt(**req.prompt.model_dump())
 
     if req.suite_id is not None:
@@ -204,6 +274,9 @@ async def optimize(req: OptimizeRequest) -> dict[str, Any]:
                 expected=sc.get("expected"),
                 rubric=sc.get("rubric"),
                 threshold=sc.get("threshold", 0.7),
+                expected_tools=sc.get("expected_tools"),
+                relevant_doc_ids=sc.get("relevant_doc_ids"),
+                expected_claims=sc.get("expected_claims"),
             )
             for sc in suite_cases
         ]
@@ -218,10 +291,15 @@ async def optimize(req: OptimizeRequest) -> dict[str, Any]:
         iterations=req.iterations,
         use_rewriter=req.use_rewriter,
         rewriter_model=req.rewriter_model,
+        repeats=req.repeats,
+        judge_adapter=judge_adapter,
+        significance_z=req.significance_z,
     )
     return {
+        "baseline_result": results["baseline_result"],
         "best_prompt": results["best_prompt"].model_dump(),
         "best_result": results["best_result"],
+        "comparison": results["comparison"],
     }
 
 
@@ -236,6 +314,7 @@ async def optimize_stream(req: OptimizeRequest) -> StreamingResponse:
         async def run() -> None:
             try:
                 adapter = make_adapter(req.prompt.provider)
+                judge_adapter = make_adapter(req.judge_provider) if req.judge_provider else None
                 prompt = Prompt(**req.prompt.model_dump())
                 if req.suite_id is not None:
                     suite_cases = get_suite_cases(req.suite_id)
@@ -248,6 +327,9 @@ async def optimize_stream(req: OptimizeRequest) -> StreamingResponse:
                             expected=sc.get("expected"),
                             rubric=sc.get("rubric"),
                             threshold=sc.get("threshold", 0.7),
+                            expected_tools=sc.get("expected_tools"),
+                            relevant_doc_ids=sc.get("relevant_doc_ids"),
+                            expected_claims=sc.get("expected_claims"),
                         )
                         for sc in suite_cases
                     ]
@@ -262,6 +344,9 @@ async def optimize_stream(req: OptimizeRequest) -> StreamingResponse:
                     use_rewriter=req.use_rewriter,
                     rewriter_model=req.rewriter_model,
                     progress_callback=progress,
+                    repeats=req.repeats,
+                    judge_adapter=judge_adapter,
+                    significance_z=req.significance_z,
                 )
                 await queue.put(json.dumps({
                     "type": "done",
@@ -337,6 +422,10 @@ def create_suite_endpoint(req: SuiteCreateRequest) -> dict[str, Any]:
             input_data=case.get("input", {}),
             expected=case.get("expected"),
             rubric=case.get("rubric"),
+            threshold=case.get("threshold", 0.7),
+            expected_tools=case.get("expected_tools"),
+            relevant_doc_ids=case.get("relevant_doc_ids"),
+            expected_claims=case.get("expected_claims"),
             order_idx=idx,
         )
     suite = get_suite(suite_id)
@@ -374,6 +463,9 @@ def add_suite_case_endpoint(suite_id: int, req: SuiteCaseRequest) -> dict[str, A
         rubric=req.rubric,
         threshold=req.threshold,
         order_idx=req.order_idx,
+        expected_tools=req.expected_tools,
+        relevant_doc_ids=req.relevant_doc_ids,
+        expected_claims=req.expected_claims,
     )
     return {"case_id": case_id}
 
@@ -382,3 +474,20 @@ def add_suite_case_endpoint(suite_id: int, req: SuiteCaseRequest) -> dict[str, A
 def remove_suite_case_endpoint(suite_id: int, case_id: int) -> dict[str, Any]:
     remove_suite_case(case_id)
     return {"deleted": case_id}
+
+
+@app.post("/runs/{run_id}/release-gate")
+def release_gate(run_id: int, req: ReleaseGateRequest) -> dict[str, Any]:
+    run = get_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="not_found")
+    baseline = get_run(req.baseline_run_id) if req.baseline_run_id is not None else None
+    if req.baseline_run_id is not None and baseline is None:
+        raise HTTPException(status_code=404, detail="baseline_not_found")
+    result = evaluate_release_gate(
+        run.get("aggregate_metrics"),
+        thresholds=req.thresholds,
+        baseline_metrics=baseline.get("aggregate_metrics") if baseline else None,
+    )
+    update_run_gate(run_id, "passed" if result.passed else "failed")
+    return {"run_id": run_id, "release_gate": result.model_dump()}

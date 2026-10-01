@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-
 type Run = {
   id?: number;
   prompt_name?: string;
@@ -16,6 +14,7 @@ type Run = {
   run_id?: string;
   prompt_hash?: string;
   regression?: number;
+  gate_status?: string;
 };
 
 function AreaChart({
@@ -169,7 +168,7 @@ export default function DashboardClient({
   useEffect(() => {
     const refresh = async () => {
       try {
-        const res = await fetch(`${API_URL}/runs?limit=200`, { cache: "no-store" });
+        const res = await fetch(`${apiUrl}/runs?limit=200`, { cache: "no-store" });
         if (!res.ok) throw new Error("non-ok");
         const data = await res.json();
         setRuns(data.runs || []);
@@ -180,7 +179,7 @@ export default function DashboardClient({
     };
     const id = setInterval(refresh, 10_000);
     return () => clearInterval(id);
-  }, []);
+  }, [apiUrl]);
 
   const prompts = useMemo(
     () =>
@@ -207,8 +206,9 @@ export default function DashboardClient({
     [runs, promptFilter, modelFilter]
   );
 
-  const primary = filtered.map((r) => Number(r[metric] || 0));
-  const secondary = filtered.map((r) => Number(r.judge_score || 0));
+  const chronological = [...filtered].reverse();
+  const primary = chronological.map((r) => Number(r[metric] || 0));
+  const secondary = chronological.map((r) => Number(r.judge_score || 0));
 
   return (
     <>
@@ -232,7 +232,7 @@ export default function DashboardClient({
         <KpiCard
           label="Best Judge Score"
           value={bestJudge > 0 ? bestJudge.toFixed(4) : "—"}
-          sub="averaged 3×"
+          sub="evaluation quality"
         />
         <KpiCard
           label="Best Pass Rate"
@@ -366,7 +366,7 @@ export default function DashboardClient({
                   </td>
                 </tr>
               )}
-              {[...filtered].reverse().slice(0, 50).map((r, idx) => (
+              {filtered.slice(0, 50).map((r, idx) => (
                 <tr
                   key={idx}
                   className="border-t border-border/30 hover:bg-white/[0.025] transition-colors"
@@ -382,6 +382,11 @@ export default function DashboardClient({
                         </Link>
                       ) : (
                         <span className="text-muted">—</span>
+                      )}
+                      {r.gate_status && (
+                        <span className={`rounded border px-1.5 py-0.5 text-[10px] font-mono ${r.gate_status === "passed" ? "border-emerald-500/30 text-emerald-300" : "border-danger/30 text-danger"}`}>
+                          gate {r.gate_status}
+                        </span>
                       )}
                       {r.regression === 1 && (
                         <span className="inline-flex items-center gap-1 rounded bg-danger/10 border border-danger/20 px-1.5 py-0.5 text-[10px] text-danger font-mono">

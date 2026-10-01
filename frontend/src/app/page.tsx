@@ -36,12 +36,12 @@ export default async function Page() {
           <div>
             <div className="flex items-center gap-2 mb-2.5">
               <span className="text-[10px] font-mono uppercase tracking-widest text-accent bg-accent/8 border border-accent/18 rounded px-2 py-0.5">
-                prompt-as-code
+                LLM evaluation
               </span>
             </div>
             <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
             <p className="text-muted text-sm mt-1">
-              Performance metrics, optimization history, and regression tracking.
+              Evaluation quality, CI gates, prompt history, and regression tracking.
             </p>
           </div>
           <Link

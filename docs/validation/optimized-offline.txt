@@ -1,0 +1,9 @@
+CI PASS | run=2 | cases=4
+Pass rate: 100.0% (required 85.0%)
+Average objective: 0.9455
+Average judge score: 1.0000
+Failure labels: none
+Latency p95 (ms): 450.0
+Cost per attempted task (USD): 0.0002
+
+Exit code: 0

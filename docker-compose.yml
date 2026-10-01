@@ -1,17 +1,19 @@
-version: '3.9'
-
 services:
   backend:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8002:8000"
     environment:
       - OLLAMA_URL=http://host.docker.internal:11434
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY:-}
       - CORS_ORIGINS=http://localhost:3000
       - PROMPTOPS_DB=/data/promptops.db
       - MLFLOW_TRACKING_URI=/data/mlruns
+      - MLFLOW_ALLOW_FILE_STORE=true
     volumes:
       - promptops_data:/data
     extra_hosts:
@@ -23,7 +25,7 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://localhost:8000
+        - NEXT_PUBLIC_API_URL=http://localhost:8002
         - NEXT_PUBLIC_MLFLOW_URL=http://localhost:5001
     ports:
       - "3000:3000"
@@ -39,6 +41,8 @@ services:
       - "5001:5000"
     volumes:
       - promptops_data:/data
+    environment:
+      - MLFLOW_ALLOW_FILE_STORE=true
     entrypoint: []
     command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri /data/mlruns --default-artifact-root /data/mlruns
     restart: unless-stopped

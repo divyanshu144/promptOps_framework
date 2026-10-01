@@ -1,6 +1,8 @@
 # PromptOps
 
-> **Prompt-as-code MLOps framework** — version, evaluate, optimize, and monitor LLM prompts with the same rigor applied to software.
+> **LLM evaluation and prompt observability platform** — evaluate prompt and RAG quality, detect regressions, enforce CI quality gates, and inspect failures through FastAPI, Next.js, SQLite, and MLflow.
+
+Run offline regression demos without model API keys; connect Ollama, OpenAI, Claude, or Mistral for live evaluations.
 
 
 ---
@@ -27,7 +29,7 @@ Prompt engineering happens in notebooks, chat windows, and scattered scripts. Th
 | **Test suites** | Persistent named collections of test cases with expected outputs and rubrics |
 | **Prompt history** | Per-prompt run history with aggregate stats and trend view |
 | **Experiment tracking** | MLflow logs params, metrics, and output artifacts for every run |
-| **Multi-provider** | Ollama (local), OpenAI, Anthropic — swap via a single `provider` field |
+| **Multi-provider** | Ollama (local), OpenAI, Claude, Mistral — swap via a single `provider` field |
 
 ---
 
@@ -74,7 +76,7 @@ Prompt engineering happens in notebooks, chat windows, and scattered scripts. Th
 
 **Backend** — Python 3.11, FastAPI, Pydantic v2, SQLite, MLflow, httpx (async), Typer CLI  
 **Frontend** — Next.js 14, React 18, Tailwind CSS, Outfit + DM Mono fonts  
-**Providers** — Ollama (local LLMs), OpenAI API, Anthropic API  
+**Providers** — Ollama (local LLMs), OpenAI API, Anthropic Claude API, Mistral API
 **Infra** — Docker, Docker Compose, Railway (CI/CD via GitHub push)
 
 ---
@@ -142,7 +144,7 @@ The evaluation strategy is pluggable via the `EvalHarness` ABC in `promptops/eva
 | `LLMJudgeHarness` | default (omit `eval_harness`) | 3× parallel LLM judge calls averaged; respects test-case rubric |
 | `DeepEvalHarness` | `"eval_harness": "deepeval"` in `/run` body | DeepEval G-Eval + AnswerRelevancy via `PromptOpsDeepEvalLLM` bridge |
 
-The `PromptOpsDeepEvalLLM` bridge routes all DeepEval metric calls through the existing `BaseAdapter`, so DeepEval works with Ollama, OpenAI, or Anthropic — no extra API key.
+The `PromptOpsDeepEvalLLM` bridge routes all DeepEval metric calls through the existing `BaseAdapter`, so DeepEval works with Ollama, OpenAI, Claude, or Mistral — no extra API key.
 
 To run the DeepEval-backed integration eval suite (requires Ollama):
 
@@ -219,6 +221,7 @@ promptops suites create "regression-suite" --description "Core quality cases"
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama server |
 | `OPENAI_API_KEY` | — | For `provider=openai` |
 | `ANTHROPIC_API_KEY` | — | For `provider=anthropic` |
+| `MISTRAL_API_KEY` | — | For `provider=mistral` |
 | `CORS_ORIGINS` | `http://localhost:3000` | Allowed frontend origins |
 | `PROMPTOPS_DB` | `./promptops.db` | SQLite path — use absolute path locally |
 | `MLFLOW_TRACKING_URI` | `./mlruns` | MLflow tracking dir or server URL |
@@ -234,7 +237,7 @@ promptops/
 ├── core/
 │   ├── prompt.py          # Prompt model (name, system, template, provider…)
 │   ├── runner.py          # run_dataset(), run_prompt(), regression detection
-│   └── adapters/          # BaseAdapter, OllamaAdapter, OpenAIAdapter, AnthropicAdapter
+│   └── adapters/          # BaseAdapter, OllamaAdapter, OpenAIAdapter, AnthropicAdapter, MistralAdapter
 ├── eval/
 │   ├── harness.py         # EvalHarness ABC — pluggable evaluation interface
 │   ├── llm_judge_harness.py  # LLMJudgeHarness — default, wraps judge.py
@@ -250,7 +253,7 @@ promptops/
 ├── api/
 │   └── app.py             # FastAPI — all endpoints including /optimize/stream SSE
 ├── tests/
-│   └── ...                # pytest suite (53 tests covering core, eval, opt, store)
+│   └── ...                # pytest suite covering core, eval, opt, store, CI gates, and RAG
 └── tests/evals/           # DeepEval integration tests (require Ollama; skips if unavailable)
 └── cli.py                 # Typer CLI
 
@@ -274,7 +277,7 @@ frontend/src/app/
 pytest tests/ -v
 ```
 
-All 53 tests run without a live model provider — they use mocked adapters.
+Normal tests run offline with mocked adapters and explicit response fixtures.
 
 ```bash
 # Integration tests (require Ollama running)
@@ -308,3 +311,152 @@ The `JudgeResult` shape (`score`, `criteria`, `reasoning`) is what the rest of t
 - **Frontend**: `frontend/railway.toml` — Nixpacks builder, `sh -c 'next start -p $PORT'`
 - Push to `main` → Railway auto-deploys both services
 - No Ollama on Railway — set `OPENAI_API_KEY` and use `provider=openai`
+
+
+## Production AI Engineering
+
+This project demonstrates evaluation harness design, regression detection, CI quality gates,
+RAG groundedness diagnostics, failure analysis, MLflow experiment tracking, and multi-provider
+integration. Prompt optimization is one workflow within the evaluation and observability platform.
+The local architecture is suited to development and evaluation workloads; authentication,
+queueing, distributed storage, and deployment hardening remain separate production concerns.
+
+## CI Quality Gate
+
+```bash
+promptops ci --suite regression-suite --prompt path/to/prompt.json --min-pass-rate 0.85
+# Stored suite IDs also work; suites can instead be JSON files containing a cases array.
+promptops ci --suite examples/rag/suite.json --prompt optimized --harness rag \
+  --replay examples/rag/optimized-responses.json --min-pass-rate 0.85
+```
+
+`--prompt` accepts a JSON Prompt config or an example name (`baseline`, `optimized`, resolved
+relative to the repository's `examples/rag` directory). `--suite` accepts a stored name/ID or JSON file.
+The command runs the existing runner, logs to MLflow, saves per-case results to SQLite, prints
+pass rate and average objective, and stores gate status. Exit codes: **0 passed, 1 threshold
+failed, 2 invalid input/provider error**. Empty suites fail. The threshold is inclusive.
+Use `--judge-provider` and `--judge-model` to configure a separate judge for generic evaluations.
+`MLFLOW_TRACKING_URI` controls CLI tracking. See [offline workflow](.github/workflows/promptops-quality.yml).
+Without `--replay`, generation uses the provider/model in the prompt JSON; live demos require
+Ollama or optional API credentials. Replay is explicitly fixture-based and only supported with RAG.
+The existing `release-gate` command checks an already-stored run against multiple metric limits.
+
+## RAG Evaluation and Failure Analysis
+
+Select `"eval_harness": "rag"` in `POST /run` or `--harness rag` in the CLI.
+Case `input` contains `question`, `contexts: [{"id": "policy", "text": "..."}]`, and
+`expected_citations: ["policy"]`; `expected` contains the golden answer. Existing suite CRUD
+persists these inputs without a schema migration. See [sample suite](examples/rag/suite.json).
+
+`RAGHarness` implements the existing `EvalHarness` interface. It reports faithfulness/groundedness,
+context relevance (expected-source precision), citation coverage, unsupported-claim rate, and
+answer relevance (golden-answer token recall). Quality is the minimum of faithfulness, citation
+coverage, and answer relevance, so one strong metric cannot hide an unsupported answer.
+Per-case metrics and run aggregates are persisted and logged to MLflow.
+
+These are **lexical extractive diagnostics**, not semantic fact verification. Claims are split
+on sentence boundaries/newlines and must match a contiguous source phrase; bracketed
+citations must refer to supplied source IDs. Paraphrases, negation, and complex claims can be
+mis-scored. Use a semantic `EvalHarness` and human-reviewed golden sets for broader RAG workloads.
+Context relevance uses annotated source IDs, rather than a semantic relevance model.
+
+Failed cases receive evidence-based labels: `hallucination`, `missing_citation`,
+`format_violation`, `incomplete_answer`, `wrong_or_irrelevant_answer`, and `unsafe_output`.
+Safety labels require a judge-provided `safety` criterion; there is no built-in safety detector.
+Explicit `rubric.budgets` (`max_output_words`, `max_latency_ms`, `max_cost_usd`) add `verbosity`,
+`latency_regression`, and `cost_regression`. Budget labels compare with absolute case limits.
+Failures without specific evidence are `unclassified`. Labels are diagnostic hypotheses.
+Budget violations fail the case and affect the CI pass rate; a required latency/cost metric
+that is unavailable also fails the case. JSON output schemas are validated, rather than only
+checking whether the output parses. They live in the existing result metrics JSON and appear as `failure_labels` in
+`GET /runs/{id}` and badges in the run detail UI. Legacy results return an empty label list.
+All three live adapters can estimate generation cost from explicitly configured token prices.
+Set `PROMPTOPS_TOKEN_PRICES` to a JSON mapping of `"provider:model"` to `{"input": 2, "output": 4}`
+with your effective USD-per-million-token rates. No pricing is hardcoded. Costs are tagged as
+configured estimates; missing usage or rates stays unknown. Use effective rates appropriate
+to your cache/billing arrangement; estimates cover generation, not judge calls or provider invoices. The existing objective penalizes tokens and latency.
+
+## Case Study: Grounded Support Answers
+
+A four-case support-policy suite compares a generic baseline prompt with a source-only,
+citation-required prompt. [Reproduce the benchmark](docs/case-study.md) offline or use the same
+prompt pair with a live provider. These are **illustrative fixture results**, not measured model gains.
+
+| Metric | Baseline | Optimized |
+|---|---:|---:|
+| Pass rate | 25% | 100% |
+| Average objective | 0.1590 | 0.9455 |
+| Average generation tokens | 150 | 130 |
+| Fixture cost per attempted task | $0.0003 | $0.0002 |
+| Fixture generation latency p50/p95 | 800 ms | 450 ms |
+| Failure labels | hallucination, missing citation, incomplete answer, wrong or irrelevant answer | none |
+
+A separate [measured local benchmark](docs/case-study.md#measured-local-benchmark--october-1-2026)
+ran Llama 3.1 with a Qwen semantic judge over three alternating repeats: **0% → 100% citation-compliant
+answers**, with total tokens increasing from 64.50 to 134.25 per answer. This is a small four-case
+measurement; the full report includes latency and raw outputs.
+
+Outputs, token counts, costs, and latencies in the table above are authored fixtures; the real evaluation/scoring,
+SQLite persistence, and MLflow path run end to end. Replay reports fixture latency rather than
+local execution time. Live results vary and include additional judge overhead where applicable.
+
+
+### Semantic RAG Evaluation
+
+For paraphrased answers and complex claims, use the provider-backed semantic harness:
+
+```bash
+promptops ci --suite examples/rag/suite.json --prompt optimized \
+  --harness rag-semantic --judge-provider ollama --judge-model llama3.1
+```
+
+API callers select `"eval_harness": "rag-semantic"`. The semantic judge scores faithfulness,
+context relevance, answer relevance, completeness, citation support, and safety. It receives
+sources and the golden answer as untrusted data, with strict score validation. Invalid/missing
+scores fail closed; independent source-ID checks prevent the judge accepting invented or
+missing citations. Normal tests mock these model calls, and the offline replay demo remains
+extractive. Semantic judges still require calibrated golden sets and human review; their
+judgments are model estimates, not guarantees of truth.
+
+### Release Gate Configuration
+
+Default stored-run release gates require universally available metrics: task success ≥90%,
+latency p95 ≤8 seconds, and at most a 2-point task-success drop if a baseline is supplied.
+Tool/retrieval metrics are enforced when explicitly configured, so generic prompts no longer
+fail solely because they have no retrieval or tool calls. Every configured metric must exist,
+including baseline comparison metrics; nonfinite scores fail closed.
+
+```bash
+promptops release-gate 12 --thresholds examples/rag/release-thresholds.json --baseline-run-id 10
+```
+
+API callers can supply the same object as `gate_thresholds` to `/run`, or `thresholds` to
+`POST /runs/{id}/release-gate`. Run details display gate status and aggregate evaluation metrics.
+Generic quality scores are no longer reported as groundedness/hallucination measurements;
+those metrics require a judge's explicit grounding criterion.
+
+### Cloud providers
+
+Copy `.env.example` to `.env` in the project root and fill in the keys you need.
+The CLI and API load this file when started from the project root; restart the API after editing it.
+Existing environment variables take precedence. `.env` is ignored by Git.
+Configure credentials on the backend or CLI host; keys are never entered into the browser.
+Docker Compose forwards these environment variables to the backend.
+
+| Provider | Environment variable | Default CLI/UI model |
+| --- | --- | --- |
+| OpenAI (`openai`) | `OPENAI_API_KEY` | `gpt-4o-mini` |
+| Claude (`anthropic`, CLI alias `claude`) | `ANTHROPIC_API_KEY` | `claude-haiku-4-5-20251001` |
+| Mistral (`mistral`) | `MISTRAL_API_KEY` | `mistral-small-latest` |
+
+Choose a provider in Playground or Optimize; switching providers selects a compatible default model, which you can override. The judge can use a different provider. CLI example:
+
+```bash
+promptops run --provider mistral --judge-provider openai
+```
+
+For CI, set `provider` and `model` in the prompt JSON (see `examples/providers/`),
+then use that file with `promptops ci --suite examples/rag/suite.json --prompt examples/providers/mistral.json --min-pass-rate 0.85`.
+Live generation and semantic judges incur provider charges; normal tests and replay demos stay offline.
+Mistral uses its [OpenAI-compatible API](https://docs.mistral.ai/resources/migration-guides) through the existing OpenAI SDK.
+Cost estimates remain configurable through `PROMPTOPS_TOKEN_PRICES`; unknown prices are reported as unknown.

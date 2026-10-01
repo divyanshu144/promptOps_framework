@@ -6,6 +6,7 @@ from typing import Any, Dict
 import httpx
 
 from .base import BaseAdapter, ModelResponse
+from .cost import cost_trace
 
 
 class OllamaAdapter(BaseAdapter):
@@ -21,7 +22,7 @@ class OllamaAdapter(BaseAdapter):
         params: Dict[str, Any],
     ) -> ModelResponse:
         # Map max_tokens -> num_predict for Ollama
-        mapped_params = {k: v for k, v in params.items() if k != "max_tokens"}
+        mapped_params = {k: v for k, v in params.items() if k not in {"max_tokens", "format", "keep_alive"}}
         if "max_tokens" in params:
             mapped_params["num_predict"] = params["max_tokens"]
 
@@ -31,7 +32,8 @@ class OllamaAdapter(BaseAdapter):
             "system": system,
             "prompt": prompt,
             "stream": False,
-            **mapped_params,
+            "options": mapped_params,
+            **{k: params[k] for k in ("format", "keep_alive") if k in params},
         }
         async with httpx.AsyncClient(timeout=self.timeout_s) as client:
             resp = await client.post(url, json=payload)
@@ -49,8 +51,8 @@ class OllamaAdapter(BaseAdapter):
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
-            latency_ms=data.get("total_duration", 0) / 1_000_000.0,
-            raw=data,
+            latency_ms=data["total_duration"] / 1_000_000.0 if data.get("total_duration") is not None else None,
+            raw={**data, **cost_trace("ollama", model, prompt_tokens, completion_tokens)},
         )
 
     async def health_check(self) -> bool:
