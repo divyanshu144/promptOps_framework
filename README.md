@@ -37,7 +37,7 @@ Prompt engineering happens in notebooks, chat windows, and scattered scripts. Th
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Next.js 14 Frontend                           │
+│                    Next.js 15 Frontend                           │
 │  Dashboard · Playground · Optimizer · Suites · Prompt History   │
 └──────────────────────────┬──────────────────────────────────────┘
                            │ REST / SSE
@@ -75,7 +75,7 @@ Prompt engineering happens in notebooks, chat windows, and scattered scripts. Th
 ## Tech Stack
 
 **Backend** — Python 3.11, FastAPI, Pydantic v2, SQLite, MLflow, httpx (async), Typer CLI  
-**Frontend** — Next.js 14, React 18, Tailwind CSS, Outfit + DM Mono fonts  
+**Frontend** — Next.js 15, React 18, Tailwind CSS, Outfit + DM Mono fonts
 **Providers** — Ollama (local LLMs), OpenAI API, Anthropic Claude API, Mistral API
 **Infra** — Docker, Docker Compose, Railway (CI/CD via GitHub push)
 

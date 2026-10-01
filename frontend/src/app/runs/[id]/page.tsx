@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
+import Link from "next/link";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 const MLFLOW_URL = process.env.NEXT_PUBLIC_MLFLOW_URL || "http://localhost:5000";
@@ -19,8 +20,8 @@ type RunResult = {
   failure_labels?: string[];
 };
 
-export default function RunDetail({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function RunDetail({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const [run, setRun] = useState<any>(null);
   const [results, setResults] = useState<RunResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,9 +66,9 @@ export default function RunDetail({ params }: { params: { id: string } }) {
           <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
             {error || "Run not found"}
           </div>
-          <a className="text-accent hover:text-accent2 mt-4 inline-block" href="/">
+          <Link className="text-accent hover:text-accent2 mt-4 inline-block" href="/">
             Back
-          </a>
+          </Link>
         </div>
       </main>
     );
@@ -81,9 +82,9 @@ export default function RunDetail({ params }: { params: { id: string } }) {
             <h1 className="text-2xl font-semibold">Run Details</h1>
             <p className="text-muted mt-2 font-mono">ID: {run.id}</p>
           </div>
-          <a className="text-accent hover:text-accent2" href="/">
+          <Link className="text-accent hover:text-accent2" href="/">
             Back
-          </a>
+          </Link>
         </div>
 
         {run.gate_status && (
