@@ -22,8 +22,8 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
       args:
         - NEXT_PUBLIC_API_URL=http://localhost:8002
         - NEXT_PUBLIC_MLFLOW_URL=http://localhost:5001
